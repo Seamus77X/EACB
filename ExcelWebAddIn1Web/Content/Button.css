@@ -18,7 +18,7 @@
     display: inline-block;
     min-height: 32px;
     min-width: 80px;
-    padding: 4px 20px 6px;
+    padding: 4px 10px 6px;
 }
 
 .Button:hover {
@@ -57,17 +57,17 @@
     cursor: default;
 }
 
-    .Button:disabled .Button-label,
-    .Button.is-disabled .Button-label {
-        color: #a6a6a6;
-    }
+.Button:disabled .Button-label,
+.Button.is-disabled .Button-label {
+    color: #a6a6a6;
+}
 
-    .Button:disabled:hover,
-    .Button:disabled:focus,
-    .Button.is-disabled:hover,
-    .Button.is-disabled:focus {
-        outline: 0;
-    }
+.Button:disabled:hover,
+.Button:disabled:focus,
+.Button.is-disabled:hover,
+.Button.is-disabled:focus {
+    outline: 0;
+}
 
 .Button + .Button {
     margin-left: 6px;
@@ -79,9 +79,15 @@
     font-size: 14px;
 }
 
-.Button-icon,
+.Button-icon {
+    display: inline-block; /* or 'inline', depending on your layout */
+    color: white; /* sets the icon color to white */
+    float: left; /* aligns the icon to the left side of the button */
+    margin-right: 10px;
+}
+
 .Button-description {
-    display: none;
+    display:none
 }
 
 .Button.Button--primary {
