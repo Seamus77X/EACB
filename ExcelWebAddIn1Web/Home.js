@@ -33,7 +33,7 @@
                 // UI text setting for buttons and descriptions
                 $('#button1-text').text("Load Data");
                 $("#button1").attr("title", "Load Data to Excel")
-                $('#button2-text').text("Update");
+                $('#button2-text').text("Listen");
 
 
                 // Event handlers for button clicks
