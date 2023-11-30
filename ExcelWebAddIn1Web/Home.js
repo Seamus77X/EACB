@@ -5,11 +5,12 @@
     let messageBanner; 
     let dialog 
     let accessToken;  // used to store user's access token
+    let LessonsTable  // used to stored lessons learned data in memory
 
     // Constants for client ID, redirect URL, and resource domain for authentication
     const clientId = "be63874f-f40e-433a-9f35-46afa1aef385"
     const redirectUrl = "https://seamus77x.github.io/index.html"
-    const resourceDomain = "https://gsis-pmo-australia-sensei-prod.crm6.dynamics.com/"
+    const resourceDomain = "https://gsis-pmo-australia-sensei-dev.crm6.dynamics.com/"
 
     // Initialization function that runs each time a new page is loaded.
     Office.initialize = function (reason) {
@@ -31,14 +32,13 @@
                 }
 
                 // UI text setting for buttons and descriptions
-                $('#button1-text').text("Load Data");
+                $('#button1-text').text("Load CJI3 Data");
                 $("#button1").attr("title", "Load Data to Excel")
-                $('#button2-text').text("Listen");
+                $('#button2-text').text("I do nothing");
 
 
                 // Event handlers for button clicks
                 $('#button1').on("click", loadSampleData);
-                $('#button2').on("click", registerTableChangeEvent);
 
                 // Authentication and access token retrieval logic
                 if (typeof accessToken === 'undefined') {
@@ -104,18 +104,23 @@
     }
 
     // Function to load sample data
-    function loadSampleData() {
-        loadData(`${resourceDomain}api/data/v9.1/sc_integrationrecentgranulartransactions?$top=10000`, 'Sheet1', 'A1','Test')
+    async function loadSampleData() {
+        await loadData(`${resourceDomain}api/data/v9.1/sensei_lessonslearned`
+            , 'Sheet1', 'A1', 'sensei_lessonslearned')
+
+        registerTableChangeEvent('sensei_lessonslearned')
     }
     //sc_integrationrecentgranulartransactions
+    //sensei_financialtransaction
+    //sensei_financialtransactions?$select=sc_kbrkey,sc_vendorname,sensei_value,sc_docdate,sensei_financialtransactionid&$top=50000
 
     // Function to retrieve data from Dynamics 365
     async function loadData(resourceUrl, defaultSheet, defaultTpLeftRng, tableName) {
         try {
-            const CJI3_DataArr = await Read_D365(resourceUrl);
+            const DataArr = await Read_D365(resourceUrl);
 
             // report an error and interupt if failed to read data from Dataverse
-            if (!CJI3_DataArr || CJI3_DataArr.length === 0) {
+            if (!DataArr || DataArr.length === 0) {
                 throw new Error("No data retrieved or data array is empty");
             }
 
@@ -123,7 +128,9 @@
             await Excel.run(async (ctx) => {
                 const ThisWorkbook = ctx.workbook;
                 const Worksheets = ThisWorkbook.worksheets;
+                ctx.application.calculationMode = Excel.CalculationMode.manual;
                 Worksheets.load("items/tables/items/name");
+
                 await ctx.sync();
 
                 let tableFound = false;
@@ -158,9 +165,9 @@
                     if (tableFound) {
                         // Situation 1: Insert new data into the cleared data body range.
                         const startCell = oldRangeAddress.replace(/\d+/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) - 1).split(":")[0]
-                        const endCell = oldRangeAddress.replace(/\d+$/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) + CJI3_DataArr.length - 2).split(":")[1]
+                        const endCell = oldRangeAddress.replace(/\d+$/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) + DataArr.length - 2).split(":")[1]
                         const range = sheet.getRange(`${startCell}:${endCell}`);
-                        range.values = CJI3_DataArr;
+                        range.values = DataArr;
                         table.resize(range)
 
                         range.format.autofitColumns();
@@ -169,11 +176,11 @@
                         // Situation 2: If the table doesn't exist, create a new one.
 
                         let tgtSheet = Worksheets.getItem(defaultSheet);
-                        let endCellCol = columnNumberToName(columnNameToNumber(defaultTpLeftRng.replace(/\d+$/, "")) - 1 + CJI3_DataArr[0].length)
-                        let endCellRow = parseInt(defaultTpLeftRng.match(/\d+$/)[0], 10) + CJI3_DataArr.length - 1
+                        let endCellCol = columnNumberToName(columnNameToNumber(defaultTpLeftRng.replace(/\d+$/, "")) - 1 + DataArr[0].length)
+                        let endCellRow = parseInt(defaultTpLeftRng.match(/\d+$/)[0], 10) + DataArr.length - 1
                         const rangeAddress = defaultTpLeftRng + ":" + endCellCol + endCellRow;
                         const range = tgtSheet.getRange(rangeAddress);
-                        range.values = CJI3_DataArr;
+                        range.values = DataArr;
                         const newTable = tgtSheet.tables.add(rangeAddress, true /* hasHeaders */);
                         newTable.name = tableName;
 
@@ -184,11 +191,11 @@
                 } else {
                     // Situation 3: paste the data in sheet directly, no table format
                     let tgtSheet = Worksheets.getItem(defaultSheet);
-                    let endCellCol = columnNumberToName(columnNameToNumber(defaultTpLeftRng.replace(/\d+$/, "")) - 1 + CJI3_DataArr[0].length)
-                    let endCellRow = parseInt(defaultTpLeftRng.match(/\d+$/)[0], 10) + CJI3_DataArr.length - 1
+                    let endCellCol = columnNumberToName(columnNameToNumber(defaultTpLeftRng.replace(/\d+$/, "")) - 1 + DataArr[0].length)
+                    let endCellRow = parseInt(defaultTpLeftRng.match(/\d+$/)[0], 10) + DataArr.length - 1
                     const rangeAddress = defaultTpLeftRng + ":" + endCellCol + endCellRow;
                     const range = tgtSheet.getRange(rangeAddress);
-                    range.values = CJI3_DataArr;
+                    range.values = DataArr;
 
                     range.format.autofitColumns();
                     range.format.autofitRows();
@@ -198,12 +205,17 @@
             })  // end of pasting data
         } catch (error) {
             errorHandler(error.message + ' ---- ' + error.stack)
+        } finally{
+            await Excel.run(async (ctx) => {
+                ctx.application.calculationMode = Excel.CalculationMode.automatic;
+                await ctx.sync()
+            })
         }
     }
     async function updateData() {
         Update_D365('sensei_lessonslearned', '0f0db491-3421-ee11-9966-000d3a798402', { 'sc_additionalcommentsnotes': 'Update Test' })
         //Create_D365('sensei_lessonslearned', { 'sensei_name': 'Add Test', 'sc_additionalcommentsnotes': 'ADD test from Web Add-In' })
-        //Adelete_D365('sensei_lessonslearned','f38edda5-8d8d-ee11-be35-6045bd3db52a')
+        //Delete_D365('sensei_lessonslearned','f38edda5-8d8d-ee11-be35-6045bd3db52a')
     }
 
     // Function to create data in Dynamics 365
@@ -441,6 +453,7 @@
     //    if (progress >= 100) clearInterval(interval); // Clear interval at 100%
     //}, 1000);
 
+
     // Utility function to convert column number to name
     function columnNumberToName(columnNumber) {
         let columnName = "";
@@ -479,8 +492,44 @@
         messageBanner.toggleExpansion();
     }
 
- 
-    function registerTableChangeEvent() {
+    async function registerTableChangeEvent(tableName) {
+
+        console.log(`I am listening the changes in ${tableName}`)
+
+
+
+
+
+
+        //Excel.run(function (context) {
+        //    var sheet = context.workbook.worksheets.getActiveWorksheet();
+
+        //    var table = sheet.tables.getItem("sensei_lessonslearned");
+
+        //    var headerRange = table.getHeaderRowRange();
+        //    headerRange.load("values, cellCount, id");
+
+        //    return context.sync()
+        //        .then(function () {
+        //            for (var i = 0; i < headerRange.values[0].length; i++) {
+        //                console.log("Header cell value: " + headerRange.values[0][i] + headerRange.clientId);
+        //            }
+        //        });
+        //}).catch(function (error) {
+        //    console.error("Error: " + error);
+        //    if (error instanceof OfficeExtension.Error) {
+        //        console.error("Debug info: " + JSON.stringify(error.debugInfo));
+        //    }
+        //});
+
+
+
+
+
+
+
+
+
         let ThisWorkbook;
         let Worksheets;
         let tableFound = false;
@@ -494,7 +543,7 @@
                     for (let sheet of Worksheets.items) {
                         const tables = sheet.tables;
                         // Check if the 'Test' table exists in the current sheet
-                        let table = tables.items.find(t => t.name === 'Test');
+                        let table = tables.items.find(t => t.name === tableName);
 
                         if (table) {
                             // if the table found, then listen to the change in the table
@@ -506,7 +555,7 @@
 
                     if (!tableFound) {
                         // if the table not found, then raise an error
-                        throw new Error(`'Test' table is not found in Excel`);
+                        throw new Error(`[${tableName}] table is not found in Excel`);
                     }
                 }).then(ctx.sync);
             } catch (error) {
@@ -518,7 +567,6 @@
             errorHandler("Error in Excel.run: " + error.message + ' ---- ' + error.stack);
         });
     }
-
 
     // hanle table change.    tip: get after value from Excel if multiple range changes
     function handleTableChange(eventArgs) {
@@ -552,7 +600,7 @@
 
     }
 
-
+ 
 
 
 
