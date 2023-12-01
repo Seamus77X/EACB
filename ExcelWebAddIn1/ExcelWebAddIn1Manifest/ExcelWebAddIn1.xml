@@ -20,8 +20,8 @@
   <DisplayName DefaultValue="EACBOL Web Add-In" />
   <Description DefaultValue="Link EACBOL and D365"/>
   <!-- Icon for your add-in. Used on installation screens and the add-ins dialog. -->
-  <IconUrl DefaultValue="https://seamus77x.github.io/Cat.png" />
-
+  <IconUrl DefaultValue="~remoteAppUrl/Images/PoliteCat_32.png" />
+	
   <SupportUrl DefaultValue="http://www.contoso.com" />
   <!-- Domains that will be allowed when navigating. For example, if you use ShowTaskpane and then have an href link, navigation will only be allowed if the domain is on this list. -->
   <AppDomains>
@@ -69,7 +69,7 @@
           </GetStarted>
           <!-- Function file is a HTML page that includes the JavaScript where functions for ExecuteAction will be called. 
             Think of the FunctionFile as the code behind ExecuteFunction. -->
-          <FunctionFile resid="Contoso.DesktopFunctionFile.Url" />
+          <FunctionFile resid="Contoso.Taskpane.Url" />
 
           <!-- PrimaryCommandSurface is the main Office Ribbon. -->
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
@@ -124,15 +124,10 @@
 						  <bt:Image size="32" resid="Contoso.tpicon_32x32" />
 						  <bt:Image size="80" resid="Contoso.tpicon_80x80" />
 					  </Icon>
-					  <Action xsi:type="ShowTaskpane">
-						  <TaskpaneId>ButtonId1</TaskpaneId>
-						  <!-- Provide a URL resource id for the location that will be displayed on the task pane. -->
-						  <SourceLocation resid="Contoso.Taskpane.Url" />
-					  </Action>
 					  <!-- This is what happens when the command is triggered (E.g. click on the Ribbon). Supported actions are ExecuteFunction or ShowTaskpane. -->
-					  <!--<Action xsi:type="ExecuteFunction">
-						  <FunctionName>onRibbonButtonClick</FunctionName>
-					  </Action>-->
+					  <Action xsi:type="ExecuteFunction">
+						  <FunctionName>buttonFunction</FunctionName>
+					  </Action>
 				  </Control>
 				  
               </Group>
@@ -146,12 +141,12 @@
     <!-- You can use resources across hosts and form factors. -->
     <Resources>
       <bt:Images>
-        <bt:Image id="Contoso.tpicon_16x16" DefaultValue="~remoteAppUrl/Images/Button16x16.png" />
-        <bt:Image id="Contoso.tpicon_32x32" DefaultValue="~remoteAppUrl/Images/Button32x32.png" />
-        <bt:Image id="Contoso.tpicon_80x80" DefaultValue="~remoteAppUrl/Images/Button80x80.png" />
+        <bt:Image id="Contoso.tpicon_16x16" DefaultValue="~remoteAppUrl/Images/PoliteCat_16.png" />
+        <bt:Image id="Contoso.tpicon_32x32" DefaultValue="~remoteAppUrl/Images/PoliteCat_32.png" />
+        <bt:Image id="Contoso.tpicon_80x80" DefaultValue="~remoteAppUrl/Images/PoliteCat_80.png" />
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Contoso.DesktopFunctionFile.Url" DefaultValue="~remoteAppUrl/Functions/FunctionFile.html" />
+        <!--<bt:Url id="Contoso.DesktopFunctionFile.Url" DefaultValue="~remoteAppUrl/Home.html" />-->
 		<bt:Url id="Contoso.Taskpane.Url" DefaultValue="~remoteAppUrl/Home.html" />
         <bt:Url id="Contoso.GetStarted.LearnMoreUrl" DefaultValue="https://go.microsoft.com/fwlink/?LinkId=276812" />
       </bt:Urls>

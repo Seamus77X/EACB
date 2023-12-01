@@ -1,10 +1,18 @@
-﻿(function () {
+﻿Office.actions.associate("buttonFunction", function (event) {
+    console.log('Hey, you just pressed a button in Excel ribbon.')
+    console.log(accessToken)
+    event.completed();
+})
+
+let accessToken;  // used to store user's access token
+
+(function () {
     "use strict";
 
     // Declaration of global variables for later use
     let messageBanner; 
     let dialog 
-    let accessToken;  // used to store user's access token
+
     let LessonsTable  // used to stored lessons learned data in memory
 
     // Constants for client ID, redirect URL, and resource domain for authentication
@@ -15,6 +23,14 @@
     // Initialization function that runs each time a new page is loaded.
     Office.initialize = function (reason) {
         $(function () {
+
+            switch (reason) {
+                case 'inserted':
+                    console.log('The add-in was just inserted.');
+                case 'documentOpened':
+                    console.log('The add-in is already part of the document.');
+            }
+
             try {
                 // Notification mechanism initialization and hiding it initially
                 let element = document.querySelector('.MessageBanner');
@@ -23,22 +39,15 @@
 
                 // Fallback logic for versions of Excel older than 2016
                 if (!Office.context.requirements.isSetSupported('ExcelApi', '1.1')) {
-                    $("#template-description").text("This sample will display the value of the cells that you have selected in the spreadsheet.");
-                    $('#button-text').text("Display!");
-                    $('#button-desc').text("Display the selection");
-
-                    $('#highlight-button').on("click", displaySelectedCells);
-                    return;
+                    throw new Error("Sorry, this add-in only works with newer versions of Excel.")
                 }
 
                 // UI text setting for buttons and descriptions
-                $('#button1-text').text("Load CJI3 Data");
+                $('#button1-text').text("Download");
                 $("#button1").attr("title", "Load Data to Excel")
-                $('#button2-text').text("I do nothing");
-
-
-                // Event handlers for button clicks
                 $('#button1').on("click", loadSampleData);
+
+                $('#button2-text').text("Button 2");
 
                 // Authentication and access token retrieval logic
                 if (typeof accessToken === 'undefined') {
@@ -63,7 +72,7 @@
                     );
                 }
             }catch (error) {
-                errorHandler(error.message + ' ---- ' + error.stack)
+                errorHandler(error.message  )
             }
         });
     }
@@ -86,15 +95,15 @@
                 console.log("Access Token Received")
             } else if (response.Status === "Error") {
                 // Handle the error scenario
-                errorHandler(response.Message || "An error occurred." + ' ---- ' + error.stack);
+                errorHandler(response.Message || "An error occurred."  );
             } else {
                 // Handle unexpected status
-                errorHandler("Unexpected response status." + ' ---- ' + error.stack);
+                errorHandler("Unexpected response status."  );
             }
 
         } catch (error) {
             // Handle any errors that occur during processing
-            errorHandler(error.message + ' ---- ' + error.stack);
+            errorHandler(error.message  );
         } finally {
             // Close the dialog, regardless of whether an error occurred
             if (dialog) {
@@ -204,7 +213,7 @@
                 await ctx.sync();
             })  // end of pasting data
         } catch (error) {
-            errorHandler(error.message + ' ---- ' + error.stack)
+            errorHandler(error.message  )
         } finally{
             await Excel.run(async (ctx) => {
                 ctx.application.calculationMode = Excel.CalculationMode.automatic;
@@ -248,10 +257,10 @@
         } catch (error) {
             if (error.name === 'TypeError') {
                 // Handle network errors (e.g., no internet connection)
-                errorHandler("Network error: " + error.message + ' ---- ' + error.stack);
+                errorHandler("Network error: " + error.message  );
             } else {
                 // Handle other types of errors (e.g., server responded with error code)
-                errorHandler("Error encountered when adding new records in Dataverse:" + error.message + ' ---- ' + error.stack);
+                errorHandler("Error encountered when adding new records in Dataverse:" + error.message  );
             }
         }
     }
@@ -364,10 +373,10 @@
         } catch (error) {
             if (error.name === 'TypeError') {
                 // Handle network errors (e.g., no internet connection)
-                errorHandler("Network error: " + error.message + ' ---- ' + error.stack);
+                errorHandler("Network error: " + error.message  );
             } else {
                 // Handle other types of errors (e.g., server responded with error code)
-                errorHandler("Error encountered when retrieving records from Dataverse:" + error.message + ' ---- ' + error.stack);
+                errorHandler("Error encountered when retrieving records from Dataverse:" + error.message  );
             }
         }
     }
@@ -402,7 +411,7 @@
                 errorHandler("Network error: " + error.message);
             } else {
                 // Handle other types of errors (e.g., server responded with error code)
-                errorHandler("Error encountered when updating records in Dataverse" + error.message + ' ---- ' + error.stack);
+                errorHandler("Error encountered when updating records in Dataverse" + error.message  );
             }
         }
     }
@@ -423,17 +432,17 @@
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(`Server responded with status ${response.status}: ${errorData.error?.message}` + ' ---- ' + error.stack);
+                throw new Error(`Server responded with status ${response.status}: ${errorData.error?.message}`  );
             }
 
             console.log(`Record with ID [${recordId}] deleted successfully.`);
         } catch (error) {
             if (error.name === 'TypeError') {
                 // Handle network errors (e.g., no internet connection)
-                errorHandler("Network error: " + error.message + ' ---- ' + error.stack);
+                errorHandler("Network error: " + error.message  );
             } else {
                 // Handle other types of errors (e.g., server responded with error code)
-                errorHandler("Error encountered when deleting new records in Dataverse:" + error.message + ' ---- ' + error.stack);
+                errorHandler("Error encountered when deleting new records in Dataverse:" + error.message  );
             }
         }
     }
@@ -494,7 +503,7 @@
 
     async function registerTableChangeEvent(tableName) {
 
-        console.log(`I am listening the changes in ${tableName}`)
+        console.log(`I am tracking the changes in ${tableName}`)
 
 
 
@@ -560,11 +569,11 @@
                 }).then(ctx.sync);
             } catch (error) {
                 // Error handling for issues within the Excel.run block
-                errorHandler("Error in registerTableChangeEvent: " + error.message + ' ---- ' + error.stack);
+                errorHandler("Error in registerTableChangeEvent: " + error.message  );
             }
         }).catch(function (error) {
             // Error handling for issues related to Excel.run itself
-            errorHandler("Error in Excel.run: " + error.message + ' ---- ' + error.stack);
+            errorHandler("Error in Excel.run: " + error.message  );
         });
     }
 
