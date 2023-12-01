@@ -13,14 +13,14 @@
   <Id>cc96e52d-c18b-4b31-b96a-a0dc81091d86</Id>
 
   <!--Version. Updates from the store only get triggered if there is a version change. -->
-  <Version>1.0.0.0</Version>
+  <Version>1.0.0.1</Version>
   <ProviderName>[Project Control Team]</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <!-- The display name of your add-in. Used on the store and various places of the Office UI such as the add-ins dialog. -->
-  <DisplayName DefaultValue="EACBOL Web Add-In" />
-  <Description DefaultValue="Link EACBOL and D365"/>
+  <DisplayName DefaultValue="P+ integration add-in" />
+  <Description DefaultValue="Data link between P+ and EACBOL"/>
   <!-- Icon for your add-in. Used on installation screens and the add-ins dialog. -->
-  <IconUrl DefaultValue="~remoteAppUrl/Images/PoliteCat_32.png" />
+  <IconUrl DefaultValue="https://seamus77x.github.io/P+_32.png" />
 	
   <SupportUrl DefaultValue="http://www.contoso.com" />
   <!-- Domains that will be allowed when navigating. For example, if you use ShowTaskpane and then have an href link, navigation will only be allowed if the domain is on this list. -->
@@ -52,77 +52,77 @@
       <!-- Make sure the hosts you override match the hosts declared in the top section of the manifest. -->
       <Host xsi:type="Workbook">
 		<Runtimes>
-			<Runtime resid="Contoso.Taskpane.Url" lifetime="long" />
+			<Runtime resid="KBR.Taskpane.Url" lifetime="long" />
 		</Runtimes>
         <!-- Form factor. Currently only DesktopFormFactor is supported. -->
         <DesktopFormFactor>
           <!--"This code enables a customizable message to be displayed when the add-in is loaded successfully upon individual install."-->
           <GetStarted>
             <!-- Title of the Getting Started callout. The resid attribute points to a ShortString resource -->
-            <Title resid="Contoso.GetStarted.Title"/>
+            <Title resid="KBR.GetStarted.Title"/>
 
             <!-- Description of the Getting Started callout. resid points to a LongString resource -->
-            <Description resid="Contoso.GetStarted.Description"/>
+            <Description resid="KBR.GetStarted.Description"/>
 
             <!-- Points to a URL resource which details how the add-in should be used. -->
-            <LearnMoreUrl resid="Contoso.GetStarted.LearnMoreUrl"/>
+            <LearnMoreUrl resid="KBR.GetStarted.LearnMoreUrl"/>
           </GetStarted>
           <!-- Function file is a HTML page that includes the JavaScript where functions for ExecuteAction will be called. 
             Think of the FunctionFile as the code behind ExecuteFunction. -->
-          <FunctionFile resid="Contoso.Taskpane.Url" />
+          <FunctionFile resid="KBR.Taskpane.Url" />
 
           <!-- PrimaryCommandSurface is the main Office Ribbon. -->
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <!-- Use OfficeTab to extend an existing Tab. Use CustomTab to create a new tab. -->
-			 <CustomTab id="Contoso.Tab1">
+			 <CustomTab id="KBR.Tab1">
               <!-- Ensure you provide a unique id for the group. Recommendation for any IDs is to namespace using your company name. -->
-              <Group id="Contoso.Group1">
+              <Group id="KBR.Group1">
                 <!-- Label for your group. resid must point to a ShortString resource. -->
-                <Label resid="Contoso.Group1Label" />
+                <Label resid="KBR.Group1Label" />
                 <!-- Icons. Required sizes 16,32,80, optional 20, 24, 40, 48, 64. Strongly recommended to provide all sizes for great UX. -->
                 <!-- Use PNG icons. All URLs on the resources section must use HTTPS. -->
                 <Icon>
-                  <bt:Image size="16" resid="Contoso.tpicon_16x16" />
-                  <bt:Image size="32" resid="Contoso.tpicon_32x32" />
-                  <bt:Image size="80" resid="Contoso.tpicon_80x80" />
+                  <bt:Image size="16" resid="KBR.tpicon_16x16" />
+                  <bt:Image size="32" resid="KBR.tpicon_32x32" />
+                  <bt:Image size="80" resid="KBR.tpicon_80x80" />
                 </Icon>
 
                 <!-- Control. It can be of type "Button" or "Menu". -->
-                <Control xsi:type="Button" id="Contoso.TaskpaneButton">
-                  <Label resid="Contoso.TaskpaneButton.Label" />
+                <Control xsi:type="Button" id="KBR.TaskpaneButton">
+                  <Label resid="KBR.TaskpaneButton.Label" />
                   <Supertip>
                     <!-- ToolTip title. resid must point to a ShortString resource. -->
-                    <Title resid="Contoso.TaskpaneButton.Label" />
+                    <Title resid="KBR.TaskpaneButton.Label" />
                     <!-- ToolTip description. resid must point to a LongString resource. -->
-                    <Description resid="Contoso.TaskpaneButton.Tooltip" />
+                    <Description resid="KBR.TaskpaneButton.Tooltip" />
                   </Supertip>
                   <Icon>
-                    <bt:Image size="16" resid="Contoso.tpicon_16x16" />
-                    <bt:Image size="32" resid="Contoso.tpicon_32x32" />
-                    <bt:Image size="80" resid="Contoso.tpicon_80x80" />
+                    <bt:Image size="16" resid="KBR.tpicon_16x16" />
+                    <bt:Image size="32" resid="KBR.tpicon_32x32" />
+                    <bt:Image size="80" resid="KBR.tpicon_80x80" />
                   </Icon>
 
                   <!-- This is what happens when the command is triggered (E.g. click on the Ribbon). Supported actions are ExecuteFunction or ShowTaskpane. -->
                   <Action xsi:type="ShowTaskpane">
                     <TaskpaneId>ButtonId1</TaskpaneId>
                     <!-- Provide a URL resource id for the location that will be displayed on the task pane. -->
-                    <SourceLocation resid="Contoso.Taskpane.Url" />
+                    <SourceLocation resid="KBR.Taskpane.Url" />
                   </Action>
                 </Control>
 
 
-				  <Control xsi:type="Button" id="Contoso.TaskpaneButton2">
-					  <Label resid="Contoso.TaskpaneButton2.Label" />
+				  <Control xsi:type="Button" id="KBR.TaskpaneButton2">
+					  <Label resid="KBR.TaskpaneButton2.Label" />
 					  <Supertip>
 						  <!-- ToolTip title. resid must point to a ShortString resource. -->
-						  <Title resid="Contoso.TaskpaneButton2.Label" />
+						  <Title resid="KBR.TaskpaneButton2.Label" />
 						  <!-- ToolTip description. resid must point to a LongString resource. -->
-						  <Description resid="Contoso.TaskpaneButton2.Tooltip" />
+						  <Description resid="KBR.TaskpaneButton2.Tooltip" />
 					  </Supertip>
 					  <Icon>
-						  <bt:Image size="16" resid="Contoso.tpicon_16x16" />
-						  <bt:Image size="32" resid="Contoso.tpicon_32x32" />
-						  <bt:Image size="80" resid="Contoso.tpicon_80x80" />
+						  <bt:Image size="16" resid="KBR.tpicon_16x16" />
+						  <bt:Image size="32" resid="KBR.tpicon_32x32" />
+						  <bt:Image size="80" resid="KBR.tpicon_80x80" />
 					  </Icon>
 					  <!-- This is what happens when the command is triggered (E.g. click on the Ribbon). Supported actions are ExecuteFunction or ShowTaskpane. -->
 					  <Action xsi:type="ExecuteFunction">
@@ -131,7 +131,7 @@
 				  </Control>
 				  
               </Group>
-			  <Label resid="Contoso.Tab1.TabLabel" />
+			  <Label resid="KBR.Tab1.TabLabel" />
             </CustomTab>
           </ExtensionPoint>
         </DesktopFormFactor>
@@ -141,29 +141,29 @@
     <!-- You can use resources across hosts and form factors. -->
     <Resources>
       <bt:Images>
-        <bt:Image id="Contoso.tpicon_16x16" DefaultValue="~remoteAppUrl/Images/PoliteCat_16.png" />
-        <bt:Image id="Contoso.tpicon_32x32" DefaultValue="~remoteAppUrl/Images/PoliteCat_32.png" />
-        <bt:Image id="Contoso.tpicon_80x80" DefaultValue="~remoteAppUrl/Images/PoliteCat_80.png" />
+        <bt:Image id="KBR.tpicon_16x16" DefaultValue="https://seamus77x.github.io/P+_16.png" />
+        <bt:Image id="KBR.tpicon_32x32" DefaultValue="https://seamus77x.github.io/P+_32.png" />
+        <bt:Image id="KBR.tpicon_80x80" DefaultValue="https://seamus77x.github.io/P+_80.png" />
       </bt:Images>
       <bt:Urls>
-        <!--<bt:Url id="Contoso.DesktopFunctionFile.Url" DefaultValue="~remoteAppUrl/Home.html" />-->
-		<bt:Url id="Contoso.Taskpane.Url" DefaultValue="~remoteAppUrl/Home.html" />
-        <bt:Url id="Contoso.GetStarted.LearnMoreUrl" DefaultValue="https://go.microsoft.com/fwlink/?LinkId=276812" />
+        <!--<bt:Url id="KBR.DesktopFunctionFile.Url" DefaultValue="~remoteAppUrl/Home.html" />-->
+		<bt:Url id="KBR.Taskpane.Url" DefaultValue="~remoteAppUrl/Home.html" />
+        <bt:Url id="KBR.GetStarted.LearnMoreUrl" DefaultValue="https://go.microsoft.com/fwlink/?LinkId=276812" />
       </bt:Urls>
       <!-- ShortStrings max characters==125. -->
       <bt:ShortStrings>
-        <bt:String id="Contoso.TaskpaneButton.Label" DefaultValue="Open Add-In" />
-		<bt:String id="Contoso.TaskpaneButton2.Label" DefaultValue="Function Button" />
-        <bt:String id="Contoso.Group1Label" DefaultValue="Commands Group" />
-        <bt:String id="Contoso.GetStarted.Title" DefaultValue="Get started with your EACBOL add-in!" />
+        <bt:String id="KBR.TaskpaneButton.Label" DefaultValue="Open Add-In" />
+		<bt:String id="KBR.TaskpaneButton2.Label" DefaultValue="Function Button" />
+        <bt:String id="KBR.Group1Label" DefaultValue="Commands Group" />
+        <bt:String id="KBR.GetStarted.Title" DefaultValue="Get started with your P+ integration add-in!" />
 		  
-		  <bt:String id="Contoso.Tab1.TabLabel" DefaultValue="Test Tab" />
+		  <bt:String id="KBR.Tab1.TabLabel" DefaultValue="P+ integration add-in" />
       </bt:ShortStrings>
       <!-- LongStrings max characters==250. -->
       <bt:LongStrings>
-        <bt:String id="Contoso.TaskpaneButton.Tooltip" DefaultValue="This is a tip" />
-		<bt:String id="Contoso.TaskpaneButton2.Tooltip" DefaultValue="This is a tip" />
-        <bt:String id="Contoso.GetStarted.Description" DefaultValue="Your EACBOL add-in loaded succesfully. Go to the HOME tab and click the 'EACBOL' button to get started." />
+        <bt:String id="KBR.TaskpaneButton.Tooltip" DefaultValue="This is a tip" />
+		<bt:String id="KBR.TaskpaneButton2.Tooltip" DefaultValue="This is a tip" />
+        <bt:String id="KBR.GetStarted.Description" DefaultValue="Your P+ integration add-in loaded succesfully." />
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>
