@@ -1,46 +1,4 @@
-﻿Office.actions.associate("buttonFunction", function (event) {
-    console.log('Hey, you just pressed a button in Excel ribbon. Test')
-    console.log(accessToken)
-    console.log('th')
-
-
-
-    event.completed();
-})
-
-let accessToken;  // used to store user's access token
-
-(function () {
-    "use strict";
-    console.log('ta mainX')
-    // Declaration of global variables for later use
-    let messageBanner; 
-    let dialog 
-
-    let LessonsTable  // used to stored lessons learned data in memory
-
-    // Constants for client ID, redirect URL, and resource domain for authentication
-    const clientId = "be63874f-f40e-433a-9f35-46afa1aef385"
-    const redirectUrl = "https://seamus77x.github.io/index.html"
-    const resourceDomain = "https://gsis-pmo-australia-sensei-dev.crm6.dynamics.com/"
-
-    // Initialization function that runs each time a new page is loaded.
-    Office.initialize = function (reason) {
-        $(function () {
-
-            switch (reason) {
-                case 'inserted':
-                    console.log('The add-in was just inserted.');
-                case 'documentOpened':
-                    console.log('The add-in is already part of the document.');
-            }
-
-            try {
-                // Notification mechanism initialization and hiding it initially
-                let element = document.querySelector('.MessageBanner');
-                messageBanner = new components.MessageBanner(element);
-                messageBanner.hideBanner();
-
+﻿
                 // Fallback logic for versions of Excel older than 2016
                 if (!Office.context.requirements.isSetSupported('ExcelApi', '1.1')) {
                     throw new Error("Sorry, this add-in only works with newer versions of Excel.")
