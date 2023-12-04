@@ -10,7 +10,11 @@
 })
 
 let accessToken;  // used to store user's access token
-
+Office.actions.associate("buttonFunction", function (event) {
+    console.log('Hey, you just pressed a button in Excel ribbon. Test')
+    console.log(accessToken)
+    event.completed();
+})
 (function () {
     "use strict";
     console.log('ta mainX')
