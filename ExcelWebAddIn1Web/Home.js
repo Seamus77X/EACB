@@ -1,6 +1,10 @@
 ﻿Office.actions.associate("buttonFunction", function (event) {
     console.log('Hey, you just pressed a button in Excel ribbon. Test')
 
+    console.log(accessToken)
+    console.log('this is mainX')
+
+
 
     console.log('da')
 })
@@ -9,7 +13,7 @@ let accessToken;  // used to store user's access token
 
 (function () {
     "use strict";
-
+    console.log('this is mainX')
     // Declaration of global variables for later use
     let messageBanner; 
     let dialog 
