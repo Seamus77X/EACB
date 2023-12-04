@@ -2,8 +2,7 @@
     console.log('Hey, you just pressed a button in Excel ribbon. Test')
     console.log(accessToken)
 
-    console.log('aaaa')
-    console.log('bbbb')
+
     event.completed();
 })
 
