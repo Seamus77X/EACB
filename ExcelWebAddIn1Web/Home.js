@@ -4,6 +4,7 @@
 
     console.log('aaaa')
     console.log('bbbb')
+    console.log('CCCC')
     event.completed();
 })
 
