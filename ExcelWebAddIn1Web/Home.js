@@ -1,7 +1,7 @@
 ﻿Office.actions.associate("buttonFunction", function (event) {
     console.log('Hey, you just pressed a button in Excel ribbon. Test')
     console.log(accessToken)
-    console.log('a')
+    console.log('a1')
 
     event.completed();
     event.completed();
