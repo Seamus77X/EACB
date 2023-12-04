@@ -2,6 +2,8 @@
     console.log('Hey, you just pressed a button in Excel ribbon. Test')
     console.log(accessToken)
     event.completed();
+
+    console.log('da')
 })
 
 let accessToken;  // used to store user's access token
