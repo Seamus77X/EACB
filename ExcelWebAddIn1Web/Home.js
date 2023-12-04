@@ -3,6 +3,7 @@
     console.log(accessToken)
 
     console.log('aaaa')
+    console.log('bbbb')
     event.completed();
 })
 
