@@ -6,6 +6,7 @@
     console.log('bbbb')
     console.log('CCCC')
     console.log('CCCC')
+    console.log('CCCC')
     event.completed();
 })
 
