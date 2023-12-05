@@ -117,7 +117,7 @@
 
     // Function to load sample data
     async function loadSampleData() {
-        await loadData(`${resourceDomain}api/data/v9.1/sensei_lessonslearned`
+        await loadData(`${resourceDomain}api/data/v9.1/sensei_lessonslearned?$select=_sensei_project_value,_owningbusinessunit_value,sensei_name,statecode,statuscode,sensei_category,sensei_lessonlearnedid,_ownerid_value	modifiedon,_owninguser_value,_modifiedby_value,versionnumber,sensei_id,createdon,_createdby_value,_sc_discipline_value,sensei_observation,sensei_lessonlearned,_sensei_program_value,sensei_recommendation,overriddencreatedon,sensei_actiontaken,sc_projectspecificlessonid,sensei_includeinpsr,sc_projectimpact,sensei_includeinprogramreport,importsequencenumber,_modifiedonbehalfby_value,sc_projectlessonidtext`
             , 'Sheet1', 'A1', 'sensei_lessonslearned')
 
         registerTableChangeEvent('sensei_lessonslearned')
