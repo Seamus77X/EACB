@@ -76,11 +76,11 @@
         });
     }
 
-    //Office.actions.associate("buttonFunction", function (event) {
-    //    console.log('Hey, you just pressed a button in Excel ribbon. Test')
-    //    console.log(accessToken)
-    //    event.completed();
-    //})
+    Office.actions.associate("buttonFunction", function (event) {
+        console.log('Hey, you just pressed a button in Excel ribbon. Test')
+        console.log(accessToken)
+        event.completed();
+    })
 
     // Process message (access token) received from the dialog
     function processMessage(arg) {
