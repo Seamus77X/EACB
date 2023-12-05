@@ -36,7 +36,7 @@
     <Host Name="Workbook" />
   </Hosts>
   <DefaultSettings>
-    <SourceLocation DefaultValue="~remoteAppUrl/Home.html" />
+    <SourceLocation DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Home.html" />
   </DefaultSettings>
   <!-- End TaskPane Mode integration.  -->
 
@@ -146,7 +146,7 @@
         <bt:Image id="KBR.tpicon_80x80" DefaultValue="https://seamus77x.github.io/P+_80.png" />
       </bt:Images>
       <bt:Urls>
-        <!--<bt:Url id="KBR.DesktopFunctionFile.Url" DefaultValue="~remoteAppUrl/Home.html" />-->
+        <!--<bt:Url id="KBR.DesktopFunctionFile.Url" DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Home.html" />-->
 		<bt:Url id="KBR.Taskpane.Url" DefaultValue="~remoteAppUrl/Home.html" />
         <bt:Url id="KBR.GetStarted.LearnMoreUrl" DefaultValue="https://go.microsoft.com/fwlink/?LinkId=276812" />
       </bt:Urls>
