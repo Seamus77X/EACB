@@ -20,7 +20,7 @@
 	<DisplayName DefaultValue="P+ integration add-in" />
 	<Description DefaultValue="Data link between P+ and EACBOL"/>
 	<!-- Icon for your add-in. Used on installation screens and the add-ins dialog. -->
-	<IconUrl DefaultValue="https://seamus77x.github.io/P+_32.png" />
+	<IconUrl DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Images/P+_32.png" />
 
 	<SupportUrl DefaultValue="http://www.contoso.com" />
 	<!-- Domains that will be allowed when navigating. For example, if you use ShowTaskpane and then have an href link, navigation will only be allowed if the domain is on this list. -->
@@ -141,9 +141,9 @@
 		<!-- You can use resources across hosts and form factors. -->
 		<Resources>
 			<bt:Images>
-				<bt:Image id="KBR.tpicon_16x16" DefaultValue="https://seamus77x.github.io/P+_16.png" />
-				<bt:Image id="KBR.tpicon_32x32" DefaultValue="https://seamus77x.github.io/P+_32.png" />
-				<bt:Image id="KBR.tpicon_80x80" DefaultValue="https://seamus77x.github.io/P+_80.png" />
+				<bt:Image id="KBR.tpicon_16x16" DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Images/P+_16.png" />
+				<bt:Image id="KBR.tpicon_32x32" DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Images/P+_32.png" />
+				<bt:Image id="KBR.tpicon_80x80" DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Images/P+_80.png" />
 			</bt:Images>
 			<bt:Urls>
 				<!--<bt:Url id="KBR.DesktopFunctionFile.Url" DefaultValue="~remoteAppUrl/Home.html" />-->
