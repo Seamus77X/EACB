@@ -22,6 +22,7 @@
             //Office.context.document.settings.saveAsync();
 
             Office.addin.setStartupBehavior(Office.StartupBehavior.load);
+            //Office.addin.setStartupBehavior(Office.StartupBehavior.none);
 
             try {
                 // Notification mechanism initialization and hiding it initially
