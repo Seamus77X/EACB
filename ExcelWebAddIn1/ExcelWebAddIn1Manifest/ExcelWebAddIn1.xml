@@ -153,7 +153,7 @@
 			<!-- ShortStrings max characters==125. -->
 			<bt:ShortStrings>
 				<bt:String id="KBR.TaskpaneButton.Label" DefaultValue="Open Add-In" />
-				<bt:String id="KBR.TaskpaneButton2.Label" DefaultValue="Function Button" />
+				<bt:String id="KBR.TaskpaneButton2.Label" DefaultValue="Function Buttons" />
 				<bt:String id="KBR.Group1Label" DefaultValue="Commands Group" />
 				<bt:String id="KBR.GetStarted.Title" DefaultValue="Get started with your P+ integration add-in!" />
 
