@@ -18,9 +18,9 @@
     Office.initialize = function (reason) {
         $(function () {
 
-            Office.context.document.settings.set("Office.AutoShowTaskpaneWithDocument", true);
-            //Office.context.document.settings.saveAsync();
-            //Office.addin.setStartupBehavior(Office.StartupBehavior.load);
+            //Office.context.document.settings.set("Office.AutoShowTaskpaneWithDocument", true);
+            Office.context.document.settings.saveAsync();
+            Office.addin.setStartupBehavior(Office.StartupBehavior.load);
 
             try {
                 // Notification mechanism initialization and hiding it initially
