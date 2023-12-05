@@ -1,6 +1,4 @@
-﻿function helloWorld() {
-    console.log('hello')
-}
+﻿
 
 (function () {
     "use strict";
@@ -119,7 +117,7 @@
 
     // Function to load sample data
     async function loadSampleData() {
-        await loadData(`${resourceDomain}api/data/v9.1/sensei_lessonslearned`
+        await loadData(`${resourceDomain}api/data/v9.1/sc_integrationrecentgranulartransactions?$top=10000`
             , 'Sheet1', 'A1', 'sensei_lessonslearned')
 
         registerTableChangeEvent('sensei_lessonslearned')
