@@ -1,27 +1,14 @@
-﻿Office.actions.associate("buttonFunction", function (event) {
-    console.log('Hey, you just pressed a button in Excel ribbon. Test')
+﻿function helloWorld() {
+    console.log('hello')
+}
 
-    console.log(accessToken)
-    console.log('test')
-
-
-
-    console.log('daaa')
-})
-
-let accessToken;  // used to store user's access token
-Office.actions.associate("buttonFunction", function (event) {
-    console.log('Hey, you just pressed a button in Excel ribbon. Test')
-    console.log(accessToken)
-    event.completed();
-})
 (function () {
     "use strict";
-    console.log('ta mainX')
-    // Declaration of global variables for later use
-    let messageBanner; 
-    let dialog 
 
+    // Declaration of global variables for later use
+    let messageBanner;
+    let dialog
+    let accessToken;  // used to store user's access token
     let LessonsTable  // used to stored lessons learned data in memory
 
     // Constants for client ID, redirect URL, and resource domain for authentication
@@ -33,12 +20,9 @@ Office.actions.associate("buttonFunction", function (event) {
     Office.initialize = function (reason) {
         $(function () {
 
-            switch (reason) {
-                case 'inserted':
-                    console.log('The add-in was just inserted.');
-                case 'documentOpened':
-                    console.log('The add-in is already part of the document.');
-            }
+            Office.context.document.settings.set("Office.AutoShowTaskpaneWithDocument", true);
+            Office.context.document.settings.saveAsync();
+            Office.addin.setStartupBehavior(Office.StartupBehavior.load);
 
             try {
                 // Notification mechanism initialization and hiding it initially
@@ -50,6 +34,12 @@ Office.actions.associate("buttonFunction", function (event) {
                 if (!Office.context.requirements.isSetSupported('ExcelApi', '1.1')) {
                     throw new Error("Sorry, this add-in only works with newer versions of Excel.")
                 }
+
+                // add external js
+                //$('#myScriptX').attr('src', 'Test.js')
+                //$.getScript('Test.js', function () {
+                //    externalFun()
+                //})
 
                 // UI text setting for buttons and descriptions
                 $('#button1-text').text("Download");
@@ -80,11 +70,17 @@ Office.actions.associate("buttonFunction", function (event) {
                         }
                     );
                 }
-            }catch (error) {
-                errorHandler(error.message  )
+            } catch (error) {
+                errorHandler(error.message)
             }
         });
     }
+
+    Office.actions.associate("buttonFunction", function (event) {
+        console.log('Hey, you just pressed a button in Excel ribbon. Test')
+        console.log(accessToken)
+        event.completed();
+    })
 
     // Process message (access token) received from the dialog
     function processMessage(arg) {
@@ -104,15 +100,15 @@ Office.actions.associate("buttonFunction", function (event) {
                 console.log("Access Token Received")
             } else if (response.Status === "Error") {
                 // Handle the error scenario
-                errorHandler(response.Message || "An error occurred."  );
+                errorHandler(response.Message || "An error occurred.");
             } else {
                 // Handle unexpected status
-                errorHandler("Unexpected response status."  );
+                errorHandler("Unexpected response status.");
             }
 
         } catch (error) {
             // Handle any errors that occur during processing
-            errorHandler(error.message  );
+            errorHandler(error.message);
         } finally {
             // Close the dialog, regardless of whether an error occurred
             if (dialog) {
@@ -171,9 +167,8 @@ Office.actions.associate("buttonFunction", function (event) {
                             // Clear the data body range.
                             const dataBodyRange = table.getDataBodyRange();
                             dataBodyRange.load("address");
-                            dataBodyRange.clear();
+                            //dataBodyRange.clear();
                             await ctx.sync();
-
                             // Load the address of the range for new data insertion.
                             oldRangeAddress = dataBodyRange.address.split('!')[1];
                             break;
@@ -181,18 +176,25 @@ Office.actions.associate("buttonFunction", function (event) {
                     }
 
                     if (tableFound) {
+                        // keep first data row for customised function on LHS and RHS
+                        const oldAddressWithouutFirstRow = oldRangeAddress.replace(/\d+/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) + 1)
+                        sheet.getRange(oldAddressWithouutFirstRow).clear()
                         // Situation 1: Insert new data into the cleared data body range.
-                        const startCell = oldRangeAddress.replace(/\d+/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) - 1).split(":")[0]
+                        const startCell = oldRangeAddress.split(":")[0]
                         const endCell = oldRangeAddress.replace(/\d+$/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) + DataArr.length - 2).split(":")[1]
                         const range = sheet.getRange(`${startCell}:${endCell}`);
+                        DataArr.shift()
                         range.values = DataArr;
-                        table.resize(range)
+
+                        // include header row when resize
+                        const startCellWithHeader = oldRangeAddress.replace(/\d+/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) - 1).split(":")[0]
+                        const WholeTabkeRange = sheet.getRange(`${startCellWithHeader}:${endCell}`)
+                        table.resize(WholeTabkeRange)
 
                         range.format.autofitColumns();
                         range.format.autofitRows();
                     } else {
                         // Situation 2: If the table doesn't exist, create a new one.
-
                         let tgtSheet = Worksheets.getItem(defaultSheet);
                         let endCellCol = columnNumberToName(columnNameToNumber(defaultTpLeftRng.replace(/\d+$/, "")) - 1 + DataArr[0].length)
                         let endCellRow = parseInt(defaultTpLeftRng.match(/\d+$/)[0], 10) + DataArr.length - 1
@@ -222,8 +224,8 @@ Office.actions.associate("buttonFunction", function (event) {
                 await ctx.sync();
             })  // end of pasting data
         } catch (error) {
-            errorHandler(error.message  )
-        } finally{
+            errorHandler(error.message)
+        } finally {
             await Excel.run(async (ctx) => {
                 ctx.application.calculationMode = Excel.CalculationMode.automatic;
                 await ctx.sync()
@@ -266,10 +268,10 @@ Office.actions.associate("buttonFunction", function (event) {
         } catch (error) {
             if (error.name === 'TypeError') {
                 // Handle network errors (e.g., no internet connection)
-                errorHandler("Network error: " + error.message  );
+                errorHandler("Network error: " + error.message);
             } else {
                 // Handle other types of errors (e.g., server responded with error code)
-                errorHandler("Error encountered when adding new records in Dataverse:" + error.message  );
+                errorHandler("Error encountered when adding new records in Dataverse:" + error.message);
             }
         }
     }
@@ -382,10 +384,10 @@ Office.actions.associate("buttonFunction", function (event) {
         } catch (error) {
             if (error.name === 'TypeError') {
                 // Handle network errors (e.g., no internet connection)
-                errorHandler("Network error: " + error.message  );
+                errorHandler("Network error: " + error.message);
             } else {
                 // Handle other types of errors (e.g., server responded with error code)
-                errorHandler("Error encountered when retrieving records from Dataverse:" + error.message  );
+                errorHandler("Error encountered when retrieving records from Dataverse:" + error.message);
             }
         }
     }
@@ -420,7 +422,7 @@ Office.actions.associate("buttonFunction", function (event) {
                 errorHandler("Network error: " + error.message);
             } else {
                 // Handle other types of errors (e.g., server responded with error code)
-                errorHandler("Error encountered when updating records in Dataverse" + error.message  );
+                errorHandler("Error encountered when updating records in Dataverse" + error.message);
             }
         }
     }
@@ -441,17 +443,17 @@ Office.actions.associate("buttonFunction", function (event) {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(`Server responded with status ${response.status}: ${errorData.error?.message}`  );
+                throw new Error(`Server responded with status ${response.status}: ${errorData.error?.message}`);
             }
 
             console.log(`Record with ID [${recordId}] deleted successfully.`);
         } catch (error) {
             if (error.name === 'TypeError') {
                 // Handle network errors (e.g., no internet connection)
-                errorHandler("Network error: " + error.message  );
+                errorHandler("Network error: " + error.message);
             } else {
                 // Handle other types of errors (e.g., server responded with error code)
-                errorHandler("Error encountered when deleting new records in Dataverse:" + error.message  );
+                errorHandler("Error encountered when deleting new records in Dataverse:" + error.message);
             }
         }
     }
@@ -578,11 +580,11 @@ Office.actions.associate("buttonFunction", function (event) {
                 }).then(ctx.sync);
             } catch (error) {
                 // Error handling for issues within the Excel.run block
-                errorHandler("Error in registerTableChangeEvent: " + error.message  );
+                errorHandler("Error in registerTableChangeEvent: " + error.message);
             }
         }).catch(function (error) {
             // Error handling for issues related to Excel.run itself
-            errorHandler("Error in Excel.run: " + error.message  );
+            errorHandler("Error in Excel.run: " + error.message);
         });
     }
 
@@ -618,7 +620,7 @@ Office.actions.associate("buttonFunction", function (event) {
 
     }
 
- 
+
 
 
 
