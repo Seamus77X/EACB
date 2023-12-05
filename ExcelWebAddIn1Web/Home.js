@@ -11,7 +11,7 @@
 
     // Constants for client ID, redirect URL, and resource domain for authentication
     const clientId = "be63874f-f40e-433a-9f35-46afa1aef385"
-    const redirectUrl = "https://seamus77x.github.io/EACB/index.html"
+    const redirectUrl = "https://seamus77x.github.io/index.html"
     const resourceDomain = "https://gsis-pmo-australia-sensei-dev.crm6.dynamics.com/"
 
     // Initialization function that runs each time a new page is loaded.
