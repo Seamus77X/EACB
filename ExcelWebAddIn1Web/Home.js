@@ -117,7 +117,7 @@
 
     // Function to load sample data
     async function loadSampleData() {
-        await loadData(`${resourceDomain}api/data/v9.1/sensei_lessonslearned?$select=_sensei_project_value,_owningbusinessunit_value,sensei_name,statecode,statuscode,sensei_category,sensei_lessonlearnedid`
+        await loadData(`${resourceDomain}api/data/v9.1/sensei_lessonslearned`
             , 'Sheet1', 'A1', 'sensei_lessonslearned')
 
         registerTableChangeEvent('sensei_lessonslearned')
