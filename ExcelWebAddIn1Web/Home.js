@@ -297,7 +297,7 @@
         }
     }
 
-    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 2) {
+    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 4.5) {
 
         const jsonString = JSON.stringify(data);
         const sizeInBytes = new TextEncoder().encode(jsonString).length;
@@ -332,16 +332,9 @@
             const chunkRowCount = chunk.length;
             const endRow = startRow + chunkRowCount - 1; // Calculate end row for the current chunk
             const rangeAddress = `${startCol}${startRow}:${endCol}${endRow}`;
-
-            //try {
-                //await Excel.run(async (context) => {
-                    const range = sheet.getRange(rangeAddress);
-                    range.values = chunk;
-                    await ctx.sync();
-            //    });
-            //} catch (error) {
-            //    errorHandler(error.message);
-            //}
+            const range = sheet.getRange(rangeAddress);
+            range.values = chunk;
+            await ctx.sync();
 
             startRow += chunkRowCount; // Update startRow for the next chunk
         }
