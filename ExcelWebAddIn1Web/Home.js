@@ -150,7 +150,7 @@
     async function loadSampleData() {
         const tableName = 'sc_integrationrecentgranulartransactions'
 
-        await loadData(`${resourceDomain}api/data/v9.1/${tableName}?$top=10000`
+        await loadData(`${resourceDomain}api/data/v9.1/${tableName}?$top=1300`
             , tableName, 1, 'Sheet1', 'A1')
 
         registerTableChangeEvent(tableName)
