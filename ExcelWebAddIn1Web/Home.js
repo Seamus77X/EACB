@@ -8,6 +8,7 @@
     let dialog
     let accessToken;  // used to store user's access token
     let LessonsTable  // used to stored lessons learned data in memory
+    let runningEnvir
 
     // Constants for client ID, redirect URL, and resource domain for authentication
     const clientId = "be63874f-f40e-433a-9f35-46afa1aef385"
@@ -27,22 +28,28 @@
 
                 switch (Office.context.platform) {
                     case Office.PlatformType.PC:
+                        runningEnvir = Office.PlatformType.PC
                         console.log('I am running in Desktop Excel on Windows');
                         break;
                     case Office.PlatformType.Mac:
+                        runningEnvir = Office.PlatformType.Mac
                         console.log('I am running in Desktop Excel on Mac');
                         break;
                     case Office.PlatformType.OfficeOnline:
+                        runningEnvir = Office.PlatformType.OfficeOnline
                         console.log('I am running in Web Excel');
                         break;
                     case Office.PlatformType.iOS:
+                        runningEnvir = Office.PlatformType.iOS
                         console.log('I am running in Excel on iOS');
                         break;
                     case Office.PlatformType.Android:
+                        runningEnvir = Office.PlatformType.Android
                         console.log('I am running in Excel on Android');
                         break;
                     // You can add more cases here as needed
                     default:
+                        runningEnvir = PlatformNotFound
                         console.log('Platform not identified');
                         break;
                 }
