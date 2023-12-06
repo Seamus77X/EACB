@@ -297,7 +297,7 @@
         }
     }
 
-    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 4) {
+    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 4.5) {
 
         const jsonString = JSON.stringify(data);
         const sizeInBytes = new TextEncoder().encode(jsonString).length;
@@ -341,7 +341,6 @@
         });
 
         await Promise.all(promises);
-        console.log('All chunks pasted successfully');
     }
 
     async function updateData() {
