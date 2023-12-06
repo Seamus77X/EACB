@@ -150,7 +150,7 @@
     async function loadSampleData() {
         const tableName = 'sc_integrationrecentgranulartransactions'
 
-        await loadData(`${resourceDomain}api/data/v9.1/${tableName}?$top=1300`
+        await loadData(`${resourceDomain}api/data/v9.1/${tableName}?$top=10000`
             , tableName, 1, 'Sheet1', 'A1')
 
         registerTableChangeEvent(tableName)
@@ -297,7 +297,7 @@
         }
     }
 
-    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 1) {
+    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 4.5) {
 
         const jsonString = JSON.stringify(data);
         const sizeInBytes = new TextEncoder().encode(jsonString).length;
@@ -320,28 +320,29 @@
 
         return chunks;
     }
-    async function pasteChunksToExcel(chunks, rangeAddressToPaste, sheet) {
-        const startCol = rangeAddressToPaste.match(/[A-Za-z]+/)[0]; // Extract starting column from range
-        let startRow = parseInt(rangeAddressToPaste.match(/\d+/)[0], 10); // Extract starting row number from range
 
-        // Calculate the ending column based on the number of columns in the chunk
-        const numberOfCols = chunks[0][0].length; // Assuming all chunks have the same number of columns
+    async function pasteChunksToExcel(chunks, rangeAddressToPaste, sheet) {
+        const startCol = rangeAddressToPaste.match(/[A-Za-z]+/)[0];
+        let startRow = parseInt(rangeAddressToPaste.match(/\d+/)[0], 10);
+
+        const numberOfCols = chunks[0][0].length;
         const endCol = columnNumberToName(columnNameToNumber(startCol) + numberOfCols - 1);
 
-        const promises = chunks.map((chunk, index) => {
+        for (const chunk of chunks) {
             const endRow = startRow + chunk.length - 1;
             const rangeAddress = `${startCol}${startRow}:${endCol}${endRow}`;
-            startRow = endRow + 1; // Update startRow for the next chunk
 
-            return Excel.run(async (context) => {
+            await Excel.run(async (context) => {
                 const range = sheet.getRange(rangeAddress);
                 range.values = chunk;
                 await context.sync();
             });
-        });
 
-        await Promise.all(promises);
+            startRow = endRow + 1; // Update startRow for the next chunk
+        }
     }
+
+
 
     async function updateData() {
         Update_D365('sensei_lessonslearned', '0f0db491-3421-ee11-9966-000d3a798402', { 'sc_additionalcommentsnotes': 'Update Test' })
