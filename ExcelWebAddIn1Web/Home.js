@@ -17,14 +17,22 @@
     // Initialization function that runs each time a new page is loaded.
     Office.initialize = function (reason) {
         $(function () {
-
-            //Office.context.document.settings.set("Office.AutoShowTaskpaneWithDocument", true);
-            //Office.context.document.settings.saveAsync();
-
-            Office.addin.setStartupBehavior(Office.StartupBehavior.load);
-            //Office.addin.setStartupBehavior(Office.StartupBehavior.none);
-
             try {
+
+                //Office.context.document.settings.set("Office.AutoShowTaskpaneWithDocument", true);
+                //Office.context.document.settings.saveAsync();
+
+                Office.addin.setStartupBehavior(Office.StartupBehavior.load);
+                //Office.addin.setStartupBehavior(Office.StartupBehavior.none);
+
+
+                if (Office.context.host === Office.HostType.Excel) {
+                    console.log('I am running in Desktop Excel')
+                } else if (Office.context.host === Office.HostType.OfficeOnline) {
+                    console.log('I am running in Web Excel')
+                }
+
+
                 // Notification mechanism initialization and hiding it initially
                 let element = document.querySelector('.MessageBanner');
                 messageBanner = new components.MessageBanner(element);

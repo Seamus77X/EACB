@@ -21,7 +21,8 @@
 	<Description DefaultValue="Data link between P+ and EACBOL"/>
 	<!-- Icon for your add-in. Used on installation screens and the add-ins dialog. -->
 	<IconUrl DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Images/P+_32.png" />
-
+	<HighResolutionIconUrl DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Images/P+_80.png" />
+	
 	<SupportUrl DefaultValue="http://www.contoso.com" />
 	<!-- Domains that will be allowed when navigating. For example, if you use ShowTaskpane and then have an href link, navigation will only be allowed if the domain is on this list. -->
 	<AppDomains>
@@ -153,7 +154,7 @@
 			<!-- ShortStrings max characters==125. -->
 			<bt:ShortStrings>
 				<bt:String id="KBR.TaskpaneButton.Label" DefaultValue="Open Add-In" />
-				<bt:String id="KBR.TaskpaneButton2.Label" DefaultValue="Function Buttons" />
+				<bt:String id="KBR.TaskpaneButton2.Label" DefaultValue="Function Button" />
 				<bt:String id="KBR.Group1Label" DefaultValue="Commands Group" />
 				<bt:String id="KBR.GetStarted.Title" DefaultValue="Get started with your P+ integration add-in!" />
 
