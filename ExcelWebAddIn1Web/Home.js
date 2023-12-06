@@ -236,7 +236,7 @@
                         if (runningEnvir !== Office.PlatformType.OfficeOnline) {
                             range.values = DataArr;
                         } else {
-                            pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), newRangeAdress, sheet)
+                            pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), newRangeAdress, sheet, ctx)
                         }
 
                         // include header row when resize
@@ -297,7 +297,7 @@
         }
     }
 
-    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 0.5) {
+    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 2) {
 
         const jsonString = JSON.stringify(data);
         const sizeInBytes = new TextEncoder().encode(jsonString).length;
@@ -311,7 +311,7 @@
 
         let chunks = [];
         const totalRows = data.length;
-        const rowsPerChunk = 24 // Math.ceil(totalRows * maxChunkSizeInMB / sizeInMB);
+        const rowsPerChunk = Math.ceil(totalRows * maxChunkSizeInMB / sizeInMB);
 
         for (let i = 0; i < totalRows; i += rowsPerChunk) {
             const chunk = data.slice(i, i + rowsPerChunk);
@@ -321,7 +321,7 @@
         return chunks;
     }
 
-    async function pasteChunksToExcel(chunks, rangeAddressToPaste, sheet) {
+    async function pasteChunksToExcel(chunks, rangeAddressToPaste, sheet, ctx) {
         const startCol = rangeAddressToPaste.match(/[A-Za-z]+/)[0];
         let startRow = parseInt(rangeAddressToPaste.match(/\d+/)[0], 10);
 
@@ -334,14 +334,14 @@
             const rangeAddress = `${startCol}${startRow}:${endCol}${endRow}`;
 
             try {
-                await Excel.run(async (context) => {
+                //await Excel.run(async (context) => {
                     const range = sheet.getRange(rangeAddress);
                     range.values = chunk;
-                    await context.sync();
-                });
-            } catch (error) {
-                errorHandler(error.message);
-            }
+                    await ctx.sync();
+            //    });
+            //} catch (error) {
+            //    errorHandler(error.message);
+            //}
 
             startRow += chunkRowCount; // Update startRow for the next chunk
         }
