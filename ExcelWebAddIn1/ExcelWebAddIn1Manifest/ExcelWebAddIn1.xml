@@ -1,14 +1,12 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8" ?>
 <!--Created:ce44715c-8c4e-446b-879c-ea9ebe0f09c8-->
-<OfficeApp
-          xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
-          xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
-          xsi:type="TaskPaneApp">
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+           xsi:type="TaskPaneApp">
 
 	<!-- Begin Basic Settings: Add-in metadata, used for all versions of Office unless override provided. -->
-
 	<!-- IMPORTANT! Id must be unique for your add-in, if you reuse this manifest ensure that you change this id to a new GUID. -->
 	<Id>cc96e52d-c18b-4b31-b96a-a0dc81091d86</Id>
 
@@ -18,11 +16,11 @@
 	<DefaultLocale>en-US</DefaultLocale>
 	<!-- The display name of your add-in. Used on the store and various places of the Office UI such as the add-ins dialog. -->
 	<DisplayName DefaultValue="P+ integration add-in" />
-	<Description DefaultValue="Data link between P+ and EACBOL"/>
+	<Description DefaultValue="Data link between P+ and EACBOL" />
 	<!-- Icon for your add-in. Used on installation screens and the add-ins dialog. -->
 	<IconUrl DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Images/P+_32.png" />
 	<HighResolutionIconUrl DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Images/P+_80.png" />
-	
+
 	<SupportUrl DefaultValue="http://www.contoso.com" />
 	<!-- Domains that will be allowed when navigating. For example, if you use ShowTaskpane and then have an href link, navigation will only be allowed if the domain is on this list. -->
 	<AppDomains>
@@ -31,13 +29,13 @@
 		<AppDomain>AppDomain3</AppDomain>
 	</AppDomains>
 	<!--End Basic Settings. -->
-
 	<!--Begin TaskPane Mode integration. This section is used if there are no VersionOverrides or if the Office client version does not support add-in commands. -->
 	<Hosts>
 		<Host Name="Workbook" />
 	</Hosts>
 	<DefaultSettings>
-		<SourceLocation DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Home.html" />
+		<!--<SourceLocation DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Home.html" />-->
+		<SourceLocation DefaultValue="~remoteAppUrl/Home.html" />
 	</DefaultSettings>
 	<!-- End TaskPane Mode integration.  -->
 
@@ -60,16 +58,16 @@
 					<!--"This code enables a customizable message to be displayed when the add-in is loaded successfully upon individual install."-->
 					<GetStarted>
 						<!-- Title of the Getting Started callout. The resid attribute points to a ShortString resource -->
-						<Title resid="KBR.GetStarted.Title"/>
+						<Title resid="KBR.GetStarted.Title" />
 
 						<!-- Description of the Getting Started callout. resid points to a LongString resource -->
-						<Description resid="KBR.GetStarted.Description"/>
+						<Description resid="KBR.GetStarted.Description" />
 
 						<!-- Points to a URL resource which details how the add-in should be used. -->
-						<LearnMoreUrl resid="KBR.GetStarted.LearnMoreUrl"/>
+						<LearnMoreUrl resid="KBR.GetStarted.LearnMoreUrl" />
 					</GetStarted>
-					<!-- Function file is a HTML page that includes the JavaScript where functions for ExecuteAction will be called. 
-            Think of the FunctionFile as the code behind ExecuteFunction. -->
+					<!-- Function file is a HTML page that includes the JavaScript where functions for ExecuteAction will be called.
+                    Think of the FunctionFile as the code behind ExecuteFunction. -->
 					<FunctionFile resid="KBR.Taskpane.Url" />
 
 					<!-- PrimaryCommandSurface is the main Office Ribbon. -->
@@ -147,8 +145,8 @@
 				<bt:Image id="KBR.tpicon_80x80" DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Images/P+_80.png" />
 			</bt:Images>
 			<bt:Urls>
-				<!--<bt:Url id="KBR.DesktopFunctionFile.Url" DefaultValue="~remoteAppUrl/Home.html" />-->
-				<bt:Url id="KBR.Taskpane.Url" DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Home.html" />
+				<!--<bt:Url id="KBR.Taskpane.Url" DefaultValue="https://seamus77x.github.io/EACB/ExcelWebAddIn1Web/Home.html" />-->
+				<bt:Url id="KBR.Taskpane.Url" DefaultValue="~remoteAppUrl/Home.html" />
 				<bt:Url id="KBR.GetStarted.LearnMoreUrl" DefaultValue="https://go.microsoft.com/fwlink/?LinkId=276812" />
 			</bt:Urls>
 			<!-- ShortStrings max characters==125. -->
