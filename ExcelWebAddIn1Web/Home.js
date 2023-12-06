@@ -333,7 +333,7 @@
             const endRow = startRow + chunkRowCount - 1; // Calculate end row for the current chunk
             const rangeAddress = `${startCol}${startRow}:${endCol}${endRow}`;
 
-            try {
+            //try {
                 //await Excel.run(async (context) => {
                     const range = sheet.getRange(rangeAddress);
                     range.values = chunk;
