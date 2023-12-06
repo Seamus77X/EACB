@@ -297,7 +297,7 @@
         }
     }
 
-    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 3) {
+    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 3.8) {
 
         const jsonString = JSON.stringify(data);
         const sizeInBytes = new TextEncoder().encode(jsonString).length;
