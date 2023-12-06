@@ -311,7 +311,7 @@
 
         let chunks = [];
         const totalRows = data.length;
-        const rowsPerChunk = Math.ceil(totalRows * maxChunkSizeInMB / sizeInMB);
+        const rowsPerChunk = 24 // Math.ceil(totalRows * maxChunkSizeInMB / sizeInMB);
 
         for (let i = 0; i < totalRows; i += rowsPerChunk) {
             const chunk = data.slice(i, i + rowsPerChunk);
