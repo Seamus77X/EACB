@@ -1,5 +1,4 @@
 ﻿
-
 (function () {
     "use strict";
 
@@ -149,7 +148,7 @@
     // Function to load sample data
     async function loadSampleData() {
         await loadData(`${resourceDomain}api/data/v9.1/sensei_lessonslearned`
-            , 'Sheet1', 'A1', 'sensei_lessonslearned')
+            , 'sensei_lessonslearned', 3, 'Sheet1', 'A1')
 
         registerTableChangeEvent('sensei_lessonslearned')
     }
@@ -158,7 +157,7 @@
     //sensei_financialtransactions?$select=sc_kbrkey,sc_vendorname,sensei_value,sc_docdate,sensei_financialtransactionid&$top=50000
 
     // Function to retrieve data from Dynamics 365
-    async function loadData(resourceUrl, defaultSheet, defaultTpLeftRng, tableName) {
+    async function loadData(resourceUrl, tableName, Col_To_Paste_In_Table = 1, defaultSheet = 'Sheet1', defaultTpLeftRng = 'A1') {
         try {
             const DataArr = await Read_D365(resourceUrl);
 
@@ -179,6 +178,7 @@
                 let tableFound = false;
                 let table;
                 let oldRangeAddress;
+                let oldFirstRow_formula
                 let sheet
 
                 if (typeof tableName !== 'undefined') {
@@ -196,28 +196,44 @@
                             // Clear the data body range.
                             const dataBodyRange = table.getDataBodyRange();
                             dataBodyRange.load("address");
-                            //dataBodyRange.clear();
+                            let firstRow = dataBodyRange.getRow(0);
+                            firstRow.load('formulas');
+
+                            dataBodyRange.clear();
                             await ctx.sync();
                             // Load the address of the range for new data insertion.
                             oldRangeAddress = dataBodyRange.address.split('!')[1];
+                            oldFirstRow_formula = firstRow.formulas;
                             break;
                         }
                     }
 
                     if (tableFound) {
-                        // keep first data row for customised function on LHS and RHS
-                        const oldAddressWithouutFirstRow = oldRangeAddress.replace(/\d+/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) + 1)
-                        sheet.getRange(oldAddressWithouutFirstRow).clear()
-                        // Situation 1: Insert new data into the cleared data body range.
-                        const startCell = oldRangeAddress.split(":")[0]
-                        const endCell = oldRangeAddress.replace(/\d+$/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) + DataArr.length - 2).split(":")[1]
-                        const range = sheet.getRange(`${startCell}:${endCell}`);
+                        // delete header row of DataArr
                         DataArr.shift()
+
+                        // add LHS and RHS formula cols to expand dataArr
+                        let excelTableRightColNo = columnNameToNumber(oldRangeAddress.split(":")[1].replace(/\d+$/, ''))
+                        let ppTableRightColNo = columnNameToNumber(oldRangeAddress.split(":")[0].replace(/\d+$/, '')) + Col_To_Paste_In_Table - 1 + DataArr[0].length - 1
+                        DataArr.forEach(row => {
+                            if (Col_To_Paste_In_Table > 1) {
+                                let tempRowFormula = oldFirstRow_formula
+                                row.unshift(...tempRowFormula[0].slice(0, Col_To_Paste_In_Table - 1))
+                            }
+
+                            if (excelTableRightColNo > ppTableRightColNo) {
+                                let tempRowFormula = oldFirstRow_formula
+                                row.push(...tempRowFormula[0].slice(ppTableRightColNo - excelTableRightColNo))
+                            }
+                        })
+
+                        let newRangeAdress = oldRangeAddress.replace(/\d+$/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) + DataArr.length - 1)
+                        let range = sheet.getRange(newRangeAdress);
                         range.values = DataArr;
 
                         // include header row when resize
-                        const startCellWithHeader = oldRangeAddress.replace(/\d+/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) - 1).split(":")[0]
-                        const WholeTabkeRange = sheet.getRange(`${startCellWithHeader}:${endCell}`)
+                        let newRangeAdressWithHeader = newRangeAdress.replace(/\d+/, oldRangeAddress.match(/\d+/)[0] - 1)
+                        let WholeTabkeRange = sheet.getRange(newRangeAdressWithHeader)
                         table.resize(WholeTabkeRange)
 
                         range.format.autofitColumns();
@@ -227,10 +243,10 @@
                         let tgtSheet = Worksheets.getItem(defaultSheet);
                         let endCellCol = columnNumberToName(columnNameToNumber(defaultTpLeftRng.replace(/\d+$/, "")) - 1 + DataArr[0].length)
                         let endCellRow = parseInt(defaultTpLeftRng.match(/\d+$/)[0], 10) + DataArr.length - 1
-                        const rangeAddress = defaultTpLeftRng + ":" + endCellCol + endCellRow;
-                        const range = tgtSheet.getRange(rangeAddress);
+                        let rangeAddress = defaultTpLeftRng + ":" + endCellCol + endCellRow;
+                        let range = tgtSheet.getRange(rangeAddress);
                         range.values = DataArr;
-                        const newTable = tgtSheet.tables.add(rangeAddress, true /* hasHeaders */);
+                        let newTable = tgtSheet.tables.add(rangeAddress, true /* hasHeaders */);
                         newTable.name = tableName;
 
                         newTable.getRange().format.autofitColumns();
@@ -242,8 +258,8 @@
                     let tgtSheet = Worksheets.getItem(defaultSheet);
                     let endCellCol = columnNumberToName(columnNameToNumber(defaultTpLeftRng.replace(/\d+$/, "")) - 1 + DataArr[0].length)
                     let endCellRow = parseInt(defaultTpLeftRng.match(/\d+$/)[0], 10) + DataArr.length - 1
-                    const rangeAddress = defaultTpLeftRng + ":" + endCellCol + endCellRow;
-                    const range = tgtSheet.getRange(rangeAddress);
+                    let rangeAddress = defaultTpLeftRng + ":" + endCellCol + endCellRow;
+                    let range = tgtSheet.getRange(rangeAddress);
                     range.values = DataArr;
 
                     range.format.autofitColumns();
