@@ -233,7 +233,7 @@
                         let newRangeAdress = oldRangeAddress.replace(/\d+$/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) + DataArr.length - 1)
                         let range = sheet.getRange(newRangeAdress);
 
-                        if (runningEnvir !== Office.PlatformType.OfficeOnline) {
+                        if (runningEnvir === Office.PlatformType.OfficeOnline) {
                             range.values = DataArr;
                         } else {
                             pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), newRangeAdress, sheet)
