@@ -8,6 +8,7 @@
     let accessToken;  // used to store user's access token
     let LessonsTable  // used to stored lessons learned data in memory
     let runningEnvir
+    let tableListeners = { "sensei_lessonslearned": null }
 
     // Constants for client ID, redirect URL, and resource domain for authentication
     const clientId = "be63874f-f40e-433a-9f35-46afa1aef385"
@@ -147,10 +148,12 @@
 
     // Function to load sample data
     async function loadSampleData() {
-        await loadData(`${resourceDomain}api/data/v9.1/sensei_lessonslearned`
-            , 'sensei_lessonslearned', 3, 'Sheet1', 'A1')
+        const tableName = 'sc_integrationrecentgranulartransactions'
 
-        registerTableChangeEvent('sensei_lessonslearned')
+        await loadData(`${resourceDomain}api/data/v9.1/${tableName}?$top=10000`
+            , tableName, 1, 'Sheet1', 'A1')
+
+        registerTableChangeEvent(tableName)
     }
     //sc_integrationrecentgranulartransactions
     //sensei_financialtransaction
@@ -181,7 +184,7 @@
                 let oldFirstRow_formula
                 let sheet
 
-                if (typeof tableName !== 'undefined') {
+                if (tableName !== 'not using a table') {
 
                     // Attempt to find the existing table.
                     for (sheet of Worksheets.items) {
@@ -229,12 +232,17 @@
 
                         let newRangeAdress = oldRangeAddress.replace(/\d+$/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) + DataArr.length - 1)
                         let range = sheet.getRange(newRangeAdress);
-                        range.values = DataArr;
+
+                        if (runningEnvir !== Office.PlatformType.OfficeOnline) {
+                            range.values = DataArr;
+                        } else {
+                            pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), newRangeAdress, sheet)
+                        }
 
                         // include header row when resize
                         let newRangeAdressWithHeader = newRangeAdress.replace(/\d+/, oldRangeAddress.match(/\d+/)[0] - 1)
-                        let WholeTabkeRange = sheet.getRange(newRangeAdressWithHeader)
-                        table.resize(WholeTabkeRange)
+                        let WholeTableRange = sheet.getRange(newRangeAdressWithHeader)
+                        table.resize(WholeTableRange)
 
                         range.format.autofitColumns();
                         range.format.autofitRows();
@@ -245,7 +253,13 @@
                         let endCellRow = parseInt(defaultTpLeftRng.match(/\d+$/)[0], 10) + DataArr.length - 1
                         let rangeAddress = defaultTpLeftRng + ":" + endCellCol + endCellRow;
                         let range = tgtSheet.getRange(rangeAddress);
-                        range.values = DataArr;
+
+                        if (runningEnvir !== Office.PlatformType.OfficeOnline) {
+                            range.values = DataArr;
+                        } else {
+                            pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), rangeAddress, tgtSheet)
+                        }
+
                         let newTable = tgtSheet.tables.add(rangeAddress, true /* hasHeaders */);
                         newTable.name = tableName;
 
@@ -260,7 +274,12 @@
                     let endCellRow = parseInt(defaultTpLeftRng.match(/\d+$/)[0], 10) + DataArr.length - 1
                     let rangeAddress = defaultTpLeftRng + ":" + endCellCol + endCellRow;
                     let range = tgtSheet.getRange(rangeAddress);
-                    range.values = DataArr;
+
+                    if (runningEnvir !== Office.PlatformType.OfficeOnline) {
+                        range.values = DataArr;
+                    } else {
+                        pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), rangeAddress, tgtSheet)
+                    }
 
                     range.format.autofitColumns();
                     range.format.autofitRows();
@@ -277,11 +296,60 @@
             })
         }
     }
+
+    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 4.5) {
+
+        const jsonString = JSON.stringify(data);
+        const sizeInBytes = new TextEncoder().encode(jsonString).length;
+        const sizeInMB = sizeInBytes / (1024 * 1024);
+
+        console.log(`Total size: ${sizeInMB} MB`);
+
+        if (sizeInMB <= maxChunkSizeInMB) {
+            return [data]; // No need to chunk
+        }
+
+        let chunks = [];
+        const totalRows = data.length;
+        const rowsPerChunk = Math.ceil(totalRows * maxChunkSizeInMB / sizeInMB);
+
+        for (let i = 0; i < totalRows; i += rowsPerChunk) {
+            const chunk = data.slice(i, i + rowsPerChunk);
+            chunks.push(chunk);
+        }
+
+        return chunks;
+    }
+    async function pasteChunksToExcel(chunks, rangeAddressToPaste, sheet) {
+        const startCol = rangeAddressToPaste.match(/[A-Za-z]+/)[0]; // Extract starting column from range
+        let startRow = parseInt(rangeAddressToPaste.match(/\d+/)[0], 10); // Extract starting row number from range
+
+        // Calculate the ending column based on the number of columns in the chunk
+        const numberOfCols = chunks[0][0].length; // Assuming all chunks have the same number of columns
+        const endCol = columnNumberToName(columnNameToNumber(startCol) + numberOfCols - 1);
+
+        const promises = chunks.map((chunk, index) => {
+            const endRow = startRow + chunk.length - 1;
+            const rangeAddress = `${startCol}${startRow}:${endCol}${endRow}`;
+            startRow = endRow + 1; // Update startRow for the next chunk
+
+            return Excel.run(async (context) => {
+                const range = sheet.getRange(rangeAddress);
+                range.values = chunk;
+                await context.sync();
+            });
+        });
+
+        await Promise.all(promises);
+        console.log('All chunks pasted successfully');
+    }
+
     async function updateData() {
         Update_D365('sensei_lessonslearned', '0f0db491-3421-ee11-9966-000d3a798402', { 'sc_additionalcommentsnotes': 'Update Test' })
         //Create_D365('sensei_lessonslearned', { 'sensei_name': 'Add Test', 'sc_additionalcommentsnotes': 'ADD test from Web Add-In' })
         //Delete_D365('sensei_lessonslearned','f38edda5-8d8d-ee11-be35-6045bd3db52a')
     }
+
 
     // Function to create data in Dynamics 365
     async function Create_D365(entityLogicalName, addedData) {
@@ -559,12 +627,6 @@
 
     async function registerTableChangeEvent(tableName) {
 
-        console.log(`I am tracking the changes in ${tableName}`)
-
-
-
-
-
 
         //Excel.run(function (context) {
         //    var sheet = context.workbook.worksheets.getActiveWorksheet();
@@ -587,20 +649,17 @@
         //    }
         //});
 
+        try {
 
+            if (tableListeners[tableName] === true) {
+                return
+            }
 
+            let ThisWorkbook;
+            let Worksheets;
 
+            Excel.run(function (ctx) {
 
-
-
-
-
-        let ThisWorkbook;
-        let Worksheets;
-        let tableFound = false;
-
-        Excel.run(function (ctx) {
-            try {
                 ThisWorkbook = ctx.workbook;
                 Worksheets = ThisWorkbook.worksheets;
                 Worksheets.load("items/tables/items/name");
@@ -613,25 +672,25 @@
                         if (table) {
                             // if the table found, then listen to the change in the table
                             table.onChanged.add(handleTableChange);
-                            tableFound = true;
+                            tableListeners[tableName] = true
+                            console.log(`I am tracking the changes in ${tableName}`)
                             break;
                         }
                     }
 
-                    if (!tableFound) {
+                    if (!tableListeners[tableName]) {
                         // if the table not found, then raise an error
                         throw new Error(`[${tableName}] table is not found in Excel`);
                     }
                 }).then(ctx.sync);
-            } catch (error) {
-                // Error handling for issues within the Excel.run block
-                errorHandler("Error in registerTableChangeEvent: " + error.message);
-            }
-        }).catch(function (error) {
-            // Error handling for issues related to Excel.run itself
-            errorHandler("Error in Excel.run: " + error.message);
-        });
+
+            })
+        } catch (error) {
+            // Error handling for issues within the Excel.run block
+            errorHandler("Error in registerTableChangeEvent: " + error.message);
+        }
     }
+
 
     // hanle table change.    tip: get after value from Excel if multiple range changes
     function handleTableChange(eventArgs) {
