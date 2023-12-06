@@ -8,7 +8,7 @@
     let accessToken;  // used to store user's access token
     let LessonsTable  // used to stored lessons learned data in memory
     let runningEnvir
-    let tableListeners = {"sensei_lessonslearned": null}
+    let tableListeners = { "sensei_lessonslearned": null }
 
     // Constants for client ID, redirect URL, and resource domain for authentication
     const clientId = "be63874f-f40e-433a-9f35-46afa1aef385"
@@ -151,7 +151,7 @@
         const tableName = 'sc_integrationrecentgranulartransactions'
 
         await loadData(`${resourceDomain}api/data/v9.1/${tableName}?$top=10000`
-            , tableName,1, 'Sheet1', 'A1')
+            , tableName, 1, 'Sheet1', 'A1')
 
         registerTableChangeEvent(tableName)
     }
@@ -221,7 +221,7 @@
                         DataArr.forEach(row => {
                             if (Col_To_Paste_In_Table > 1) {
                                 let tempRowFormula = oldFirstRow_formula
-                                row.unshift(...tempRowFormula[0].slice(0, Col_To_Paste_In_Table-1))
+                                row.unshift(...tempRowFormula[0].slice(0, Col_To_Paste_In_Table - 1))
                             }
 
                             if (excelTableRightColNo > ppTableRightColNo) {
@@ -230,11 +230,11 @@
                             }
                         })
 
-                        let newRangeAdress = oldRangeAddress.replace(/\d+$/, parseInt(oldRangeAddress.match(/\d+/)[0],10) + DataArr.length - 1)
+                        let newRangeAdress = oldRangeAddress.replace(/\d+$/, parseInt(oldRangeAddress.match(/\d+/)[0], 10) + DataArr.length - 1)
                         let range = sheet.getRange(newRangeAdress);
 
                         if (runningEnvir !== Office.PlatformType.OfficeOnline) {
-                            range.values = DataArr; 
+                            range.values = DataArr;
                         } else {
                             pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), newRangeAdress, sheet)
                         }
@@ -341,7 +341,6 @@
         });
 
         await Promise.all(promises);
-        console.log('All chunks pasted successfully');
     }
 
     async function updateData() {
