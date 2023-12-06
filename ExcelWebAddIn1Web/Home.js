@@ -329,19 +329,23 @@
         const endCol = columnNumberToName(columnNameToNumber(startCol) + numberOfCols - 1);
 
         for (const chunk of chunks) {
-            const endRow = startRow + chunk.length - 1;
+            const chunkRowCount = chunk.length;
+            const endRow = startRow + chunkRowCount - 1; // Calculate end row for the current chunk
             const rangeAddress = `${startCol}${startRow}:${endCol}${endRow}`;
 
-            await Excel.run(async (context) => {
-                const range = sheet.getRange(rangeAddress);
-                range.values = chunk;
-                await context.sync();
-            });
+            try {
+                await Excel.run(async (context) => {
+                    const range = sheet.getRange(rangeAddress);
+                    range.values = chunk;
+                    await context.sync();
+                });
+            } catch (error) {
+                errorHandler(error.message);
+            }
 
-            startRow = endRow + 1; // Update startRow for the next chunk
+            startRow += chunkRowCount; // Update startRow for the next chunk
         }
     }
-
 
 
     async function updateData() {
