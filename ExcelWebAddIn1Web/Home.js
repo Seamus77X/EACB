@@ -25,13 +25,27 @@
                 Office.addin.setStartupBehavior(Office.StartupBehavior.load);
                 //Office.addin.setStartupBehavior(Office.StartupBehavior.none);
 
-
-                if (Office.context.host === Office.HostType.Excel) {
-                    console.log('I am running in Desktop Excel')
-                } else if (Office.context.host === Office.HostType.OfficeOnline) {
-                    console.log('I am running in Web Excel')
+                switch (Office.context.platform) {
+                    case Office.PlatformType.PC:
+                        console.log('I am running in Desktop Excel on Windows');
+                        break;
+                    case Office.PlatformType.Mac:
+                        console.log('I am running in Desktop Excel on Mac');
+                        break;
+                    case Office.PlatformType.OfficeOnline:
+                        console.log('I am running in Web Excel');
+                        break;
+                    case Office.PlatformType.iOS:
+                        console.log('I am running in Excel on iOS');
+                        break;
+                    case Office.PlatformType.Android:
+                        console.log('I am running in Excel on Android');
+                        break;
+                    // You can add more cases here as needed
+                    default:
+                        console.log('Platform not identified');
+                        break;
                 }
-
 
                 // Notification mechanism initialization and hiding it initially
                 let element = document.querySelector('.MessageBanner');
