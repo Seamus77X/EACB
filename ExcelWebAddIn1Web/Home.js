@@ -257,7 +257,7 @@
                         if (runningEnvir !== Office.PlatformType.OfficeOnline) {
                             range.values = DataArr;
                         } else {
-                            pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), rangeAddress, tgtSheet)
+                            pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), rangeAddress, tgtSheet, ctx)
                         }
 
                         let newTable = tgtSheet.tables.add(rangeAddress, true /* hasHeaders */);
@@ -278,7 +278,7 @@
                     if (runningEnvir !== Office.PlatformType.OfficeOnline) {
                         range.values = DataArr;
                     } else {
-                        pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), rangeAddress, tgtSheet)
+                        pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), rangeAddress, tgtSheet, ctx)
                     }
 
                     range.format.autofitColumns();
@@ -334,7 +334,7 @@
             const rangeAddress = `${startCol}${startRow}:${endCol}${endRow}`;
             const range = sheet.getRange(rangeAddress);
             range.values = chunk;
-            await ctx.sync();
+            ctx.sync();
 
             startRow += chunkRowCount; // Update startRow for the next chunk
         }
