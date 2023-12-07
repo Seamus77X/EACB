@@ -334,7 +334,7 @@
             const rangeAddress = `${startCol}${startRow}:${endCol}${endRow}`;
             const range = sheet.getRange(rangeAddress);
             range.values = chunk;
-            ctx.sync();
+            await ctx.sync();
 
             startRow += chunkRowCount; // Update startRow for the next chunk
         }
