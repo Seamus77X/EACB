@@ -8,6 +8,7 @@
     let accessToken;  // used to store user's access token
     let runningEnvir
     let tableListeners = { "sensei_lessonslearned": null }
+    let myTables = { "sensei_lessonslearned": null}
 
     // Constants for client ID, redirect URL, and resource domain for authentication
     const clientId = "be63874f-f40e-433a-9f35-46afa1aef385"
@@ -108,6 +109,8 @@
 
     Office.actions.associate("buttonFunction", function (event) {
         console.log('Hey, you just pressed a ribbon button.')
+        console.log(myTables)
+
         event.completed();
     })
 
@@ -149,8 +152,8 @@
     // Function to load sample data
     async function loadSampleData() {
         const tableName = 'sensei_lessonslearned'
-        const excludedColsNames = ['@odata.etag']
-        const odataCondition = '?$select=sensei_lessonlearnedid,sensei_name,sensei_lessonlearned,sensei_observation,sensei_recommendation,sensei_actiontaken&$top=5'
+        const excludedColsNames = ['@odata.etag','sensei_lessonlearnedid']
+        const odataCondition = '?$select=sensei_lessonlearnedid,sensei_name,sensei_lessonlearned,sensei_observation,sensei_actiontaken&$top=5'
 
         await loadData(`${resourceDomain}api/data/v9.1/${tableName}${odataCondition}`
             , tableName, 1, 'Sheet1', 'A1', excludedColsNames)
@@ -166,21 +169,21 @@
         try {
             let DataArr = await Read_D365(resourceUrl);
 
-            let colIndices = excludedColsNames.map(colName => DataArr[0].indexOf(colName)).filter(index => index !== -1);
+            // act as the corresponding table in memory, which records the change in Excel table
+            myTables[tableName] = JSON.parse(JSON.stringify(DataArr))
 
+            // delete unwanted cols from the array which is going to be pasted into Excel
+            let colIndices = excludedColsNames.map(colName => DataArr[0].indexOf(colName)).filter(index => index !== -1);
             // Sort the indices in descending order to avoid index shifting issues during removal
             colIndices.sort((a, b) => b - a);
-
             // Remove the columns with the found indices
             DataArr.map(row => {
                 colIndices.forEach(colIndex => row.splice(colIndex, 1));
             });
-        
             // report an error and interupt if failed to read data from Dataverse
             if (!DataArr || DataArr.length === 0) {
                 throw new Error("No data retrieved or data array is empty");
             }
-
             // paste data into Excel worksheet 
             await Excel.run(async (ctx) => {
                 const ThisWorkbook = ctx.workbook;
@@ -659,7 +662,6 @@
         //});
 
         try {
-
             if (tableListeners[tableName] === true) {
                 return
             }
@@ -703,33 +705,64 @@
 
     // hanle table change.    tip: get after value from Excel if multiple range changes
     function handleTableChange(eventArgs) {
+        try {
+            Excel.run(function (ctx) {
+                // get the Range changed and the table changed
+                let range = eventArgs.getRange(ctx)
+                range.load("values, address, rowIndex, columnIndex, cellCount")
+                let table = ctx.workbook.tables.getItem(eventArgs.tableId);
+                table.load("name")
+                let tableRange = table.getRange()
+                tableRange.load("rowIndex, columnIndex")
 
-        switch (eventArgs.changeType) {
-            case 'RangeEdited':
-                console.log(`Range [${eventArgs.address}] was just updated.`)
-                break;
-            case "RowInserted":
-                console.log(`Row [${eventArgs.address}] was just inserted.`)
-                break;
-            case "RowDeleted":
-                console.log(`Row [${eventArgs.address}] was just deleted.`)
-                break;
-            case "ColumnInserted":
-                console.log(`Column [${eventArgs.address}] was just inserted.`)
-                break;
-            case "ColumnDeleted":
-                console.log(`Column [${eventArgs.address}] was just deleted.`)
-                break;
-            case "CellInserted":
-                console.log(`Cell [${eventArgs.address}] was just inserted.`)
-                break;
-            case "CellDeleted":
-                console.log(`Cell [${eventArgs.address}] was just deleted.`)
-                break;
-            default:
-                console.log(`Unknown action.`)
-                break;
+                return ctx.sync().then(function () {
+
+                    let tableStartRow = tableRange.rowIndex; 
+                    let tableStartCol = tableRange.columnIndex; 
+
+                    switch (eventArgs.changeType) {
+                        case 'RangeEdited':
+                            let rangeRowRelative = range.rowIndex - tableStartRow; 
+                            let rangeColRelative = range.columnIndex - tableStartCol; 
+
+                            console.log(`Table [${rangeRowRelative + 1}, ${rangeColRelative + 1}] is updated`);
+                            console.log(`Range [${eventArgs.address}] in table [${table.name}] was just updated.`);
+
+                            if (range.cellCount === 1) {
+                                let jsonPayLoad = {}
+                                jsonPayLoad[myTables[table.name][0][rangeColRelative + 2]] = range.values[0][0]
+                                Update_D365(table.name, myTables[table.name][rangeRowRelative][1], jsonPayLoad)
+                            }
+
+                            break;
+                        case "RowInserted":
+                            console.log(`Row [${eventArgs.address}] was just inserted.`)
+                            break;
+                        case "RowDeleted":
+                            console.log(`Row [${eventArgs.address}] was just deleted.`)
+                            break;
+                        case "ColumnInserted":
+                            console.log(`Column [${eventArgs.address}] was just inserted.`)
+                            break;
+                        case "ColumnDeleted":
+                            console.log(`Column [${eventArgs.address}] was just deleted.`)
+                            break;
+                        case "CellInserted":
+                            console.log(`Cell [${eventArgs.address}] was just inserted.`)
+                            break;
+                        case "CellDeleted":
+                            console.log(`Cell [${eventArgs.address}] was just deleted.`)
+                            break;
+                        default:
+                            console.log(`Unknown action.`)
+                            break;
+                    }
+                })
+            })
+        } catch (error) {
+            errorHandler(error.message)
         }
+
 
     }
 
