@@ -6,7 +6,6 @@
     let messageBanner;
     let dialog
     let accessToken;  // used to store user's access token
-    let LessonsTable  // used to stored lessons learned data in memory
     let runningEnvir
     let tableListeners = { "sensei_lessonslearned": null }
 
@@ -24,6 +23,8 @@
                 //Office.context.document.settings.saveAsync();
 
                 Office.addin.setStartupBehavior(Office.StartupBehavior.load);
+                Office.addin.showAsTaskpane();
+                //Office.addin.hide();
                 //Office.addin.setStartupBehavior(Office.StartupBehavior.none);
 
                 switch (Office.context.platform) {
@@ -106,8 +107,7 @@
     }
 
     Office.actions.associate("buttonFunction", function (event) {
-        console.log('Hey, you just pressed a button in Excel ribbon. Test')
-        console.log(accessToken)
+        console.log('Hey, you just pressed a ribbon button.')
         event.completed();
     })
 
@@ -148,10 +148,12 @@
 
     // Function to load sample data
     async function loadSampleData() {
-        const tableName = 'sc_integrationrecentgranulartransactions'
+        const tableName = 'sensei_lessonslearned'
+        const excludedColsNames = ['@odata.etag']
+        const odataCondition = '?$select=sensei_lessonlearnedid,sensei_name,sensei_lessonlearned,sensei_observation,sensei_recommendation,sensei_actiontaken&$top=5'
 
-        await loadData(`${resourceDomain}api/data/v9.1/${tableName}?$top=10000`
-            , tableName, 1, 'Sheet1', 'A1')
+        await loadData(`${resourceDomain}api/data/v9.1/${tableName}${odataCondition}`
+            , tableName, 1, 'Sheet1', 'A1', excludedColsNames)
 
         registerTableChangeEvent(tableName)
     }
@@ -160,10 +162,20 @@
     //sensei_financialtransactions?$select=sc_kbrkey,sc_vendorname,sensei_value,sc_docdate,sensei_financialtransactionid&$top=50000
 
     // Function to retrieve data from Dynamics 365
-    async function loadData(resourceUrl, tableName, Col_To_Paste_In_Table = 1, defaultSheet = 'Sheet1', defaultTpLeftRng = 'A1') {
+    async function loadData(resourceUrl, tableName, Col_To_Paste_In_Table = 1, defaultSheet = 'Sheet1', defaultTpLeftRng = 'A1', excludedColsNames = ['@odata.etag']) {
         try {
-            const DataArr = await Read_D365(resourceUrl);
+            let DataArr = await Read_D365(resourceUrl);
 
+            let colIndices = excludedColsNames.map(colName => DataArr[0].indexOf(colName)).filter(index => index !== -1);
+
+            // Sort the indices in descending order to avoid index shifting issues during removal
+            colIndices.sort((a, b) => b - a);
+
+            // Remove the columns with the found indices
+            DataArr.map(row => {
+                colIndices.forEach(colIndex => row.splice(colIndex, 1));
+            });
+        
             // report an error and interupt if failed to read data from Dataverse
             if (!DataArr || DataArr.length === 0) {
                 throw new Error("No data retrieved or data array is empty");
@@ -236,7 +248,7 @@
                         if (runningEnvir !== Office.PlatformType.OfficeOnline) {
                             range.values = DataArr;
                         } else {
-                            pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), newRangeAdress, sheet)
+                            pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), newRangeAdress, sheet, ctx)
                         }
 
                         // include header row when resize
@@ -257,7 +269,7 @@
                         if (runningEnvir !== Office.PlatformType.OfficeOnline) {
                             range.values = DataArr;
                         } else {
-                            pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), rangeAddress, tgtSheet)
+                            pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), rangeAddress, tgtSheet, ctx)
                         }
 
                         let newTable = tgtSheet.tables.add(rangeAddress, true /* hasHeaders */);
@@ -278,7 +290,7 @@
                     if (runningEnvir !== Office.PlatformType.OfficeOnline) {
                         range.values = DataArr;
                     } else {
-                        pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), rangeAddress, tgtSheet)
+                        pasteChunksToExcel(splitArrayIntoSmallPieces(DataArr), rangeAddress, tgtSheet, ctx)
                     }
 
                     range.format.autofitColumns();
@@ -297,7 +309,7 @@
         }
     }
 
-    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 4.5) {
+    function splitArrayIntoSmallPieces(data, maxChunkSizeInMB = 3.3) {
 
         const jsonString = JSON.stringify(data);
         const sizeInBytes = new TextEncoder().encode(jsonString).length;
@@ -321,7 +333,7 @@
         return chunks;
     }
 
-    async function pasteChunksToExcel(chunks, rangeAddressToPaste, sheet) {
+    async function pasteChunksToExcel(chunks, rangeAddressToPaste, sheet, ctx) {
         const startCol = rangeAddressToPaste.match(/[A-Za-z]+/)[0];
         let startRow = parseInt(rangeAddressToPaste.match(/\d+/)[0], 10);
 
@@ -329,19 +341,16 @@
         const endCol = columnNumberToName(columnNameToNumber(startCol) + numberOfCols - 1);
 
         for (const chunk of chunks) {
-            const endRow = startRow + chunk.length - 1;
+            const chunkRowCount = chunk.length;
+            const endRow = startRow + chunkRowCount - 1; // Calculate end row for the current chunk
             const rangeAddress = `${startCol}${startRow}:${endCol}${endRow}`;
+            const range = sheet.getRange(rangeAddress);
+            range.values = chunk;
+            await ctx.sync();
 
-            await Excel.run(async (context) => {
-                const range = sheet.getRange(rangeAddress);
-                range.values = chunk;
-                await context.sync();
-            });
-
-            startRow = endRow + 1; // Update startRow for the next chunk
+            startRow += chunkRowCount; // Update startRow for the next chunk
         }
     }
-
 
 
     async function updateData() {
