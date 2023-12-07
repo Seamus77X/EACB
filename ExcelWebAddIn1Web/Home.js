@@ -24,6 +24,7 @@
                 //Office.context.document.settings.saveAsync();
 
                 Office.addin.setStartupBehavior(Office.StartupBehavior.load);
+                Office.addin.showAsTaskpane();
                 //Office.addin.setStartupBehavior(Office.StartupBehavior.none);
 
                 switch (Office.context.platform) {
