@@ -26,7 +26,7 @@
 	<AppDomains>
 		<AppDomain>https://seamus77x.github.io</AppDomain>
 		<AppDomain>https://login.microsoftonline.com</AppDomain>
-		<AppDomain>AppDomain3</AppDomain>
+		<AppDomain>https://kbrcorpau.sharepoint.com</AppDomain>
 	</AppDomains>
 	<!--End Basic Settings. -->
 	<!--Begin TaskPane Mode integration. This section is used if there are no VersionOverrides or if the Office client version does not support add-in commands. -->
@@ -152,7 +152,7 @@
 			<!-- ShortStrings max characters==125. -->
 			<bt:ShortStrings>
 				<bt:String id="KBR.TaskpaneButton.Label" DefaultValue="Open Add-In" />
-				<bt:String id="KBR.TaskpaneButton2.Label" DefaultValue="Function Button" />
+				<bt:String id="KBR.TaskpaneButton2.Label" DefaultValue="Function Buttolln" />
 				<bt:String id="KBR.Group1Label" DefaultValue="Commands Group" />
 				<bt:String id="KBR.GetStarted.Title" DefaultValue="Get started with your P+ integration add-in!" />
 
