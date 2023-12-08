@@ -1,4 +1,5 @@
 ﻿
+
 (function () {
     "use strict";
 
@@ -31,28 +32,28 @@
                 switch (Office.context.platform) {
                     case Office.PlatformType.PC:
                         runningEnvir = Office.PlatformType.PC
-                        console.log('I am running in Desktop Excel on Windows');
+                        console.log('Excel Platform: Desktop Excel on Windows');
                         break;
                     case Office.PlatformType.Mac:
                         runningEnvir = Office.PlatformType.Mac
-                        console.log('I am running in Desktop Excel on Mac');
+                        console.log('Excel Platform: Desktop Excel on Mac');
                         break;
                     case Office.PlatformType.OfficeOnline:
                         runningEnvir = Office.PlatformType.OfficeOnline
-                        console.log('I am running in Web Excel');
+                        console.log('Excel Platform: in Web Excel');
                         break;
                     case Office.PlatformType.iOS:
                         runningEnvir = Office.PlatformType.iOS
-                        console.log('I am running in Excel on iOS');
+                        console.log('Excel Platform: Excel on iOS');
                         break;
                     case Office.PlatformType.Android:
                         runningEnvir = Office.PlatformType.Android
-                        console.log('I am running in Excel on Android');
+                        console.log('Excel Platform: Excel on Android');
                         break;
                     // You can add more cases here as needed
                     default:
                         runningEnvir = PlatformNotFound
-                        console.log('Platform not identified');
+                        console.log('Excel Platform: Not Identified');
                         break;
                 }
 
@@ -129,7 +130,7 @@
             if (response.Status === "Success") {
                 // store the token in memory for later use
                 accessToken = response.AccessToken
-                console.log("Access Token Received")
+                console.log("Authentication Result: Passed")
             } else if (response.Status === "Error") {
                 // Handle the error scenario
                 errorHandler(response.Message || "An error occurred.");
@@ -155,18 +156,27 @@
         const excludedColsNames = ['@odata.etag', 'sensei_lessonlearnedid']
         const odataCondition = '?$select=sensei_lessonlearnedid,sensei_name,sensei_lessonlearned,sensei_observation,sensei_actiontaken&$top=5'
 
-        await loadData(`${resourceDomain}api/data/v9.1/${tableName}${odataCondition}`
+        await loadData(`${resourceDomain}api/data/v9.2/${tableName}${odataCondition}`
             , tableName, 1, 'Sheet1', 'A1', excludedColsNames)
-
-        registerTableChangeEvent(tableName)
     }
     //sc_integrationrecentgranulartransactions
     //sensei_financialtransaction
     //sensei_financialtransactions?$select=sc_kbrkey,sc_vendorname,sensei_value,sc_docdate,sensei_financialtransactionid&$top=50000
 
+
     // Function to retrieve data from Dynamics 365
     async function loadData(resourceUrl, tableName, Col_To_Paste_In_Table = 1, defaultSheet = 'Sheet1', defaultTpLeftRng = 'A1', excludedColsNames = ['@odata.etag']) {
         try {
+            // turn off the listener to the table when refreshing
+            await toggleEventListener(false)
+            //if (tableListeners[tableName]) {
+            //    await Excel.run(tableListeners[tableName].context, async (ctx) => {
+            //        tableListeners[tableName].remove();
+            //        await ctx.sync();
+            //        tableListeners[tableName] = null;
+            //    });
+            //}
+
             let DataArr = await Read_D365(resourceUrl);
 
             // act as the corresponding table in memory, which records the change in Excel table
@@ -305,10 +315,15 @@
         } catch (error) {
             errorHandler(error.message)
         } finally {
-            await Excel.run(async (ctx) => {
+            // turn on the auto calculation in Excel
+            Excel.run(async (ctx) => {
                 ctx.application.calculationMode = Excel.CalculationMode.automatic;
                 await ctx.sync()
             })
+            // turn on the listener to the table when refreshing
+            toggleEventListener(true)
+            // add listener to the table if no listener
+            registerTableChangeEvent(tableName)
         }
     }
 
@@ -335,7 +350,6 @@
 
         return chunks;
     }
-
     async function pasteChunksToExcel(chunks, rangeAddressToPaste, sheet, ctx) {
         const startCol = rangeAddressToPaste.match(/[A-Za-z]+/)[0];
         let startRow = parseInt(rangeAddressToPaste.match(/\d+/)[0], 10);
@@ -354,7 +368,22 @@
             startRow += chunkRowCount; // Update startRow for the next chunk
         }
     }
+    async function toggleEventListener(eventBoolean) {
+        await Excel.run(async (context) => {
+            //context.runtime.load("enableEvents");
+            //await context.sync();
 
+            //let eventBoolean = !context.runtime.enableEvents;
+            context.runtime.enableEvents = eventBoolean;
+            if (eventBoolean) {
+                console.log("Events Status: On");
+            } else {
+                console.log("Events Status: Off");
+            }
+
+            await context.sync();
+        });
+    }
 
     async function updateData() {
         Update_D365('sensei_lessonslearned', '0f0db491-3421-ee11-9966-000d3a798402', { 'sc_additionalcommentsnotes': 'Update Test' })
@@ -365,7 +394,7 @@
 
     // Function to create data in Dynamics 365
     async function Create_D365(entityLogicalName, addedData) {
-        const url = `${resourceDomain}api/data/v9.1/${entityLogicalName}`;
+        const url = `${resourceDomain}api/data/v9.2/${entityLogicalName}`;
 
         try {
             const response = await fetch(url, {
@@ -491,14 +520,14 @@
                 }
 
                 totalRecords += 1;
-                console.log('HTTP Status Code: ' + response.status + ' - Page: ' + totalRecords);
+                console.log(`Retrieving Data: Page ${totalRecords} - HTTP ${response.status}`)
 
             } while (url != null);
 
             // Update Excel with the collected data
             if (finalArr.length > 0) {
                 let finishTime = new Date().getTime();
-                console.log(`${(finishTime - startTime) / 1000} s used to download ${finalArr.length} records with ${finalArr[0].length} cols.`);
+                console.log(`Time Used: ${(finishTime - startTime) / 1000}s (${finalArr.length} rows, ${finalArr[0].length} columns)`);
 
                 return finalArr
             } else {
@@ -518,7 +547,7 @@
     }
     // Function to update data in Dynamics 365
     async function Update_D365(entityLogicalName, recordId, updatedData) {
-        const url = `${resourceDomain}api/data/v9.1/${entityLogicalName}(${recordId})`;
+        const url = `${resourceDomain}api/data/v9.2/${entityLogicalName}(${recordId})`;
 
         try {
             const response = await fetch(url, {
@@ -540,7 +569,7 @@
                 throw new Error(`Server responded with status ${response.status}: ${errorData.error?.message}`);
             }
 
-            console.log(`Record updated successfully. Updated record ID: [${recordId}]`);
+            console.log(`Synchronisation Result: record [${recordId}] is successfully updated. - HTTP ${response.status}`);
         } catch (error) {
             if (error.name === 'TypeError') {
                 // Handle network errors (e.g., no internet connection)
@@ -553,7 +582,7 @@
     }
     // Function to delete data in Dynamics 365
     async function Delete_D365(entityLogicalName, recordId) {
-        const url = `${resourceDomain}api/data/v9.1/${entityLogicalName}(${recordId})`;
+        const url = `${resourceDomain}api/data/v9.2/${entityLogicalName}(${recordId})`;
 
         try {
             const response = await fetch(url, {
@@ -638,31 +667,8 @@
     }
 
     async function registerTableChangeEvent(tableName) {
-
-
-        //Excel.run(function (context) {
-        //    var sheet = context.workbook.worksheets.getActiveWorksheet();
-
-        //    var table = sheet.tables.getItem("sensei_lessonslearned");
-
-        //    var headerRange = table.getHeaderRowRange();
-        //    headerRange.load("values, cellCount, id");
-
-        //    return context.sync()
-        //        .then(function () {
-        //            for (var i = 0; i < headerRange.values[0].length; i++) {
-        //                console.log("Header cell value: " + headerRange.values[0][i] + headerRange.clientId);
-        //            }
-        //        });
-        //}).catch(function (error) {
-        //    console.error("Error: " + error);
-        //    if (error instanceof OfficeExtension.Error) {
-        //        console.error("Debug info: " + JSON.stringify(error.debugInfo));
-        //    }
-        //});
-
         try {
-            if (tableListeners[tableName] === true) {
+            if (tableListeners[tableName]) {
                 return
             }
 
@@ -682,9 +688,8 @@
 
                         if (table) {
                             // if the table found, then listen to the change in the table
-                            table.onChanged.add(handleTableChange);
-                            tableListeners[tableName] = true
-                            console.log(`I am tracking the changes in ${tableName}`)
+                            tableListeners[tableName] = table.onChanged.add(handleTableChange)
+                            console.log(`Table Listener Added: ${tableName}`)
                             break;
                         }
                     }
@@ -709,31 +714,68 @@
             Excel.run(function (ctx) {
                 // get the Range changed and the table changed
                 let range = eventArgs.getRange(ctx)
-                range.load("values, address, rowIndex, columnIndex, cellCount")
+                range.load("values, address, rowIndex, columnIndex, cellCount, rowCount, columnCount")
                 let table = ctx.workbook.tables.getItem(eventArgs.tableId);
                 table.load("name")
                 let tableRange = table.getRange()
-                tableRange.load("rowIndex, columnIndex")
+                tableRange.load("rowIndex, columnIndex, values")
 
                 return ctx.sync().then(function () {
 
+                    let tableData = tableRange.values
                     let tableStartRow = tableRange.rowIndex;
                     let tableStartCol = tableRange.columnIndex;
 
                     switch (eventArgs.changeType) {
                         case 'RangeEdited':
-                            let rangeRowRelative = range.rowIndex - tableStartRow;
-                            let rangeColRelative = range.columnIndex - tableStartCol;
+                            let startRangeRowRelative = range.rowIndex - tableStartRow;
+                            let startRangeColRelative = range.columnIndex - tableStartCol;
 
-                            console.log(`Table [${rangeRowRelative + 1}, ${rangeColRelative + 1}] is updated`);
-                            console.log(`Range [${eventArgs.address}] in table [${table.name}] was just updated.`);
+                            let endRangeRowRelative = startRangeRowRelative + range.rowCount - 1
+                            let endRangeColRelative = startRangeColRelative + range.columnCount - 1
 
-                            if (range.cellCount === 1) {
+                            // construct the JSON Payload
+                            let jsonPayLoadColl = []
+                            let guidColl = []
+
+                            for (let r = startRangeRowRelative; r <= endRangeRowRelative; r++) {
                                 let jsonPayLoad = {}
-                                jsonPayLoad[myTables[table.name][0][rangeColRelative + 2]] = range.values[0][0]
-                                Update_D365(table.name, myTables[table.name][rangeRowRelative][1], jsonPayLoad)
+                                for (let c = startRangeColRelative; c <= endRangeColRelative; c++) {
+                                    let displayColName = tableData[0][c]
+                                    // need a fieldNameConverter - mapping table required.
+                                    let logicalColNum = myTables[table.name][0].indexOf(displayColName)
+                                    if (logicalColNum > -1) {
+                                        let logicalColName = myTables[table.name][0][logicalColNum]
+                                        jsonPayLoad[logicalColName] = tableData[r][c]
+                                    }
+                                }
+                                if (Object.keys(jsonPayLoad).length > 0) {
+                                    jsonPayLoadColl.push(jsonPayLoad)
+                                    //let guidColNum = myTables[table.name][0].indexOf(guidColName)
+                                    let guidColNum = 1
+                                    guidColl.push(myTables[table.name][r][guidColNum])
+                                }
                             }
 
+                            // current range selected
+                            console.log(`Selected Range: [${eventArgs.address}] in '${table.name}' table.`);
+
+                            // start syncing by sending http request to D365 API
+                            if (guidColl.length > 0) {
+                                if (range.cellCount === 1) {
+                                    // single cell is changed
+                                    if (JSON.stringify(eventArgs.details.valueAsJsonAfter) !== JSON.stringify(eventArgs.details.valueAsJsonBefore)) {
+                                        Update_D365(table.name, guidColl[0], jsonPayLoadColl[0])
+                                        console.log(`Synchronised Range: [${startRangeRowRelative + 1}, ${startRangeColRelative + 1}] in '${table.name}' table.`);
+                                    }
+                                } else {
+                                    // multiple range are changed
+                                    guidColl.forEach(function (rowGUID, index) {
+                                        Update_D365(table.name, rowGUID, jsonPayLoadColl[index])
+                                    })
+                                    console.log(`Synchronised Range: [(${startRangeRowRelative + 1}, ${startRangeColRelative + 1}), (${endRangeRowRelative + 1},${endRangeColRelative + 1})] in '${table.name}' table.`);
+                                }
+                            }
                             break;
                         case "RowInserted":
                             console.log(`Row [${eventArgs.address}] was just inserted.`)
