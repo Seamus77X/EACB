@@ -11,6 +11,7 @@
     let tableListeners = {"sensei_lessonslearned": null}
     let myTables = { "sensei_lessonslearned": null }
 
+
     // Constants for client ID, redirect URL, and resource domain for authentication
     const clientId = "be63874f-f40e-433a-9f35-46afa1aef385"
     const redirectUrl = "https://seamus77x.github.io/index.html"
@@ -154,7 +155,7 @@
     async function loadSampleData() {
         const tableName = 'sensei_lessonslearned'
         const excludedColsNames = ['@odata.etag','sensei_lessonlearnedid']
-        const odataCondition = '?$select=sensei_lessonlearnedid,sensei_name,sensei_lessonlearned,sensei_observation,sensei_actiontaken&$top=5'
+        const odataCondition = '?$select=sensei_lessonlearnedid,sensei_name,sensei_lessonlearned,sensei_observation,sensei_actiontaken'
 
         await loadData(`${resourceDomain}api/data/v9.2/${tableName}${odataCondition}`
             , tableName, 1, 'Sheet1', 'A1', excludedColsNames)
@@ -393,7 +394,7 @@
 
 
     // Function to create data in Dynamics 365
-    async function Create_D365(entityLogicalName, addedData) {
+    async function Create_D365(entityLogicalName, addedData, guidColName) {
         const url = `${resourceDomain}api/data/v9.2/${entityLogicalName}`;
 
         try {
@@ -416,9 +417,9 @@
             }
 
             const responseData = await response.json();
-            console.log("Record added successfully. New record ID:");
-            //console.log(JSON.stringify(responseData))
-            return responseData
+            console.log(`Synchronisation Result: record [${responseData[guidColName]}] is successfully created. - HTTP ${response.status}`);
+
+            return responseData[guidColName]
         } catch (error) {
             if (error.name === 'TypeError') {
                 // Handle network errors (e.g., no internet connection)
@@ -689,7 +690,7 @@
                         if (table) {
                             // if the table found, then listen to the change in the table
                             tableListeners[tableName] = table.onChanged.add(handleTableChange)
-                            console.log(`Table Listener Added: ${tableName}`)
+                            console.log(`Events Listener Added: ${tableName}`)
                             break;
                         }
                     }
@@ -707,38 +708,42 @@
         }
     }
 
-
+    let guidPromise
     // hanle table change.    tip: get after value from Excel if multiple range changes
     function handleTableChange(eventArgs) {
         try {
             Excel.run(function (ctx) {
                 // get the Range changed and the table changed
-                let range = eventArgs.getRange(ctx)
+                let range = ctx.workbook.worksheets.getActiveWorksheet().getRange(eventArgs.address)
                 range.load("values, address, rowIndex, columnIndex, cellCount, rowCount, columnCount")
                 let table = ctx.workbook.tables.getItem(eventArgs.tableId);
                 table.load("name")
                 let tableRange = table.getRange()
                 tableRange.load("rowIndex, columnIndex, values")
 
-                return ctx.sync().then(function () {
+                return ctx.sync().then( async function () {
 
                     let tableData = tableRange.values
-                    let tableStartRow = tableRange.rowIndex; 
-                    let tableStartCol = tableRange.columnIndex; 
+                    let tableStartRow = tableRange.rowIndex;
+                    let tableStartCol = tableRange.columnIndex;
+
+                    let startRangeRowRelative = range.rowIndex - tableStartRow;
+                    let startRangeColRelative = range.columnIndex - tableStartCol;
+
+                    let endRangeRowRelative = startRangeRowRelative + range.rowCount - 1
+                    let endRangeColRelative = startRangeColRelative + range.columnCount - 1
 
                     switch (eventArgs.changeType) {
                         case 'RangeEdited':
-                            let startRangeRowRelative = range.rowIndex - tableStartRow; 
-                            let startRangeColRelative = range.columnIndex - tableStartCol; 
-
-                            let endRangeRowRelative = startRangeRowRelative + range.rowCount - 1
-                            let endRangeColRelative = startRangeColRelative + range.columnCount - 1
-
                             // construct the JSON Payload
                             let jsonPayLoadColl = []
                             let guidColl = []
 
                             for (let r = startRangeRowRelative; r <= endRangeRowRelative; r++) {
+                                if (Date.now() - myTables[table.name][r][0] <= 10) {
+                                    myTables[table.name][r][0] = "index 0"
+                                    continue
+                                }
                                 let jsonPayLoad = {}
                                 for (let c = startRangeColRelative; c <= endRangeColRelative; c++) {
                                     let displayColName = tableData[0][c]
@@ -753,47 +758,79 @@
                                     jsonPayLoadColl.push(jsonPayLoad)
                                     //let guidColNum = myTables[table.name][0].indexOf(guidColName)
                                     let guidColNum = 1
+                                    await guidPromise
                                     guidColl.push(myTables[table.name][r][guidColNum])
                                 }
                             }
-
-                            // current range selected
-                            console.log(`Selected Range: [${eventArgs.address}] in '${table.name}' table.`);
 
                             // start syncing by sending http request to D365 API
                             if (guidColl.length > 0) {
                                 if (range.cellCount === 1) {
                                     // single cell is changed
-                                    if (JSON.stringify(eventArgs.details.valueAsJsonAfter) !== JSON.stringify(eventArgs.details.valueAsJsonBefore)) {
+                                    if (eventArgs.details === undefined || JSON.stringify(eventArgs.details.valueAsJsonAfter) !== JSON.stringify(eventArgs.details.valueAsJsonBefore)) {
                                         Update_D365(table.name, guidColl[0], jsonPayLoadColl[0])
-                                        console.log(`Synchronised Range: [${startRangeRowRelative + 1}, ${startRangeColRelative + 1}] in '${table.name}' table.`);
+                                        console.log(`Cell Updated: [${eventArgs.address}] in '${table.name}' table.`);
                                     }
                                 } else {
                                     // multiple range are changed
                                     guidColl.forEach(function (rowGUID, index) {
                                         Update_D365(table.name, rowGUID, jsonPayLoadColl[index])
                                     })
-                                    console.log(`Synchronised Range: [(${startRangeRowRelative + 1}, ${startRangeColRelative + 1}), (${endRangeRowRelative + 1},${endRangeColRelative + 1})] in '${table.name}' table.`);
+                                    console.log(`Range Updated: [${eventArgs.address}] in '${table.name}' table.`);
                                 }
                             }
                             break;
                         case "RowInserted":
-                            console.log(`Row [${eventArgs.address}] was just inserted.`)
+                            for (let r = startRangeRowRelative; r <= endRangeRowRelative; r++) {
+                                let jsonPayLoad = {}
+                                for (let c = startRangeColRelative; c <= endRangeColRelative; c++) {
+                                    let displayColName = tableData[0][c]
+                                    // need a fieldNameConverter - mapping table required.
+                                    let logicalColNum = myTables[table.name][0].indexOf(displayColName)
+                                    if (logicalColNum > -1) {
+                                        let logicalColName = myTables[table.name][0][logicalColNum]
+                                        jsonPayLoad[logicalColName] = tableData[r][c]
+                                    }
+                                }
+                                if (Object.keys(jsonPayLoad).length > 0) {
+                                    // add the row in memory table as well
+                                    if (r + 1 > myTables[table.name].length) {
+                                        myTables[table.name].push([Date.now(), "waiting for guid"])
+                                    } else {
+                                        myTables[table.name].splice(r, 0, [Date.now(), "waiting for guid"])
+                                    }
+                                    // Add in P+ table
+                                    (async function () {
+                                        guidPromise = Create_D365(table.name, jsonPayLoad, "sensei_lessonlearnedid");
+                                        myTables[table.name][r][1] = await guidPromise
+                                    })()
+                                }
+                            }
+                            console.log(`Row Inserted: [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "RowDeleted":
-                            console.log(`Row [${eventArgs.address}] was just deleted.`)
+                            // collect the row num of the rows deleted
+                            for (let r = endRangeRowRelative; r >= startRangeRowRelative ; r--) {
+                                //let guidColNum = myTables[table.name][0].indexOf(guidColName)
+                                let guidColNum = 1
+                                // delete the rows in P+ table
+                                Delete_D365(table.name, myTables[table.name][r][guidColNum])
+                                // delete the row in memeory table as well
+                                myTables[table.name].splice(r,1)
+                            }
+                            console.log(`Row Deleted: [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "ColumnInserted":
-                            console.log(`Column [${eventArgs.address}] was just inserted.`)
+                            console.log(`Column Inserted: [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "ColumnDeleted":
-                            console.log(`Column [${eventArgs.address}] was just deleted.`)
+                            console.log(`Column Deleted [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "CellInserted":
-                            console.log(`Cell [${eventArgs.address}] was just inserted.`)
+                            console.log(`Cell [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "CellDeleted":
-                            console.log(`Cell [${eventArgs.address}] was just deleted.`)
+                            console.log(`Cell [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         default:
                             console.log(`Unknown action.`)
