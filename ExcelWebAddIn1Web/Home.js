@@ -111,7 +111,9 @@
 
     Office.actions.associate("buttonFunction", function (event) {
         console.log('Hey, you just pressed a ribbon button.')
-        console.log(myTables)
+
+
+        batRequestTest("sensei_lessonslearned")
 
         event.completed();
     })
@@ -847,8 +849,58 @@
 
 
 
+    function batRequestTest(entityLogicalName) {
+        //Batch requests can contain up to 1000 individual requests and can't contain other batch requests.
 
+        const boundary = "batch_" + new Date().getTime();
+        const batchUrl = `${resourceDomain}api/data/v9.2/$batch`
 
+        const batchBody =
+`--${boundary}
+OData-MaxVersion: 4.0,
+OData-Version: 4.0,
+Accept: application/json,
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+
+POST /api/data/v9.2/${entityLogicalName} HTTP/1.1
+Content-Type: application/json;type=entry
+
+{sensei_name: "Batch Request Testing", sensei_lessonlearned: ""}
+
+--${boundary}--
+\n\n`;
+
+//`--${boundary}
+//Content-Type: application/http
+//Content-Transfer-Encoding: binary
+
+//GET /api/data/v9.2/${entityLogicalName} HTTP/1.1
+
+//--${boundary}--
+//\n\n`;
+
+        console.log(batchBody)
+
+        fetch(batchUrl, {
+            method: "POST",
+            headers: {
+                'OData-MaxVersion': '4.0',
+                'OData-Version': '4.0',
+                'Accept': 'application/json',
+                'Content-Type': `multipart/mixed;boundary=${boundary}`,
+                'Authorization': `Bearer ${accessToken}`,
+            },
+            body: batchBody
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                // Process batch response
+            })
+            .catch(error => console.error('Error:', error));
+
+    }
 
 
 })();
