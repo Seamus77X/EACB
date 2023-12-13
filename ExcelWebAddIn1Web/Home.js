@@ -721,7 +721,7 @@
                 let table = ctx.workbook.tables.getItem(eventArgs.tableId);
                 table.load("name")
                 let tableRange = table.getRange()
-                tableRange.load("rowIndex, columnIndex, values")
+                tableRange.load("rowIndex, columnIndex, rowCount, values")
 
                 return ctx.sync().then( async function () {
 
@@ -737,15 +737,47 @@
 
                     switch (eventArgs.changeType) {
                         case 'RangeEdited':
+                            // test if this is triggered by adding new rows from bottom
+                            if (Date.now() - myTables[table.name][r][0] <= 10) {
+                                myTables[table.name][r][0] = "index 0"
+                                return
+                            }
+                            // test if this is triggered by undo deleting rows
+                            if (myTables[table.name].length <= tableRange.rowCount) {
+                                // add the new rows then skip pasting using return directly
+                                for (let r = startRangeRowRelative; r <= endRangeRowRelative; r++) {
+                                    let jsonPayLoad = {}
+                                    for (let c = startRangeColRelative; c <= endRangeColRelative; c++) {
+                                        let displayColName = tableData[0][c]
+                                        // need a fieldNameConverter - mapping table required.
+                                        let logicalColNum = myTables[table.name][0].indexOf(displayColName)
+                                        if (logicalColNum > -1) {
+                                            let logicalColName = myTables[table.name][0][logicalColNum]
+                                            jsonPayLoad[logicalColName] = tableData[r][c]
+                                        }
+                                    }
+                                    if (Object.keys(jsonPayLoad).length > 0) {
+                                        // add the row in memory table as well
+                                        if (r + 1 > myTables[table.name].length) {
+                                            myTables[table.name].push([Date.now(), "waiting for guid"])
+                                        } else {
+                                            myTables[table.name].splice(r, 0, [Date.now(), "waiting for guid"])
+                                        }
+                                        // Add in P+ table
+                                        (async function () {
+                                            guidPromise = Create_D365(table.name, jsonPayLoad, "sensei_lessonlearnedid");
+                                            myTables[table.name][r][1] = await guidPromise
+                                        })()
+                                    }
+                                }
+                                return
+                            }
+
                             // construct the JSON Payload
                             let jsonPayLoadColl = []
                             let guidColl = []
 
                             for (let r = startRangeRowRelative; r <= endRangeRowRelative; r++) {
-                                if (Date.now() - myTables[table.name][r][0] <= 10) {
-                                    myTables[table.name][r][0] = "index 0"
-                                    continue
-                                }
                                 let jsonPayLoad = {}
                                 for (let c = startRangeColRelative; c <= endRangeColRelative; c++) {
                                     let displayColName = tableData[0][c]
