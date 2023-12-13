@@ -41,7 +41,7 @@
                         break;
                     case Office.PlatformType.OfficeOnline:
                         runningEnvir = Office.PlatformType.OfficeOnline
-                        console.log('Excel Platform: in Web Excel');
+                        console.log('Excel Platform: Web Excel');
                         break;
                     case Office.PlatformType.iOS:
                         runningEnvir = Office.PlatformType.iOS
@@ -113,7 +113,8 @@
         console.log('Hey, you just pressed a ribbon button.')
 
 
-        batRequestTest("sensei_lessonslearned")
+        //batRequestTest("sensei_lessonslearned")
+        tableSelectionTest()
 
         event.completed();
     })
@@ -712,7 +713,7 @@
 
     let guidPromise
     // hanle table change.    tip: get after value from Excel if multiple range changes
-    function handleTableChange(eventArgs) {
+    let handleTableChange = async (eventArgs) => {
         try {
             Excel.run(function (ctx) {
                 // get the Range changed and the table changed
@@ -737,13 +738,8 @@
 
                     switch (eventArgs.changeType) {
                         case 'RangeEdited':
-                            // test if this is triggered by adding new rows from bottom
-                            if (Date.now() - myTables[table.name][r][0] <= 10) {
-                                myTables[table.name][r][0] = "index 0"
-                                return
-                            }
                             // test if this is triggered by undo deleting rows
-                            if (myTables[table.name].length <= tableRange.rowCount) {
+                            if (myTables[table.name].length < tableRange.rowCount) {
                                 // add the new rows then skip pasting using return directly
                                 for (let r = startRangeRowRelative; r <= endRangeRowRelative; r++) {
                                     let jsonPayLoad = {}
@@ -778,6 +774,12 @@
                             let guidColl = []
 
                             for (let r = startRangeRowRelative; r <= endRangeRowRelative; r++) {
+                                // test if this is triggered by adding new rows from bottom
+                                if (Date.now() - myTables[table.name][r][0] <= 10) {
+                                    myTables[table.name][r][0] = "index 0"
+                                    return
+                                }
+
                                 let jsonPayLoad = {}
                                 for (let c = startRangeColRelative; c <= endRangeColRelative; c++) {
                                     let displayColName = tableData[0][c]
@@ -925,15 +927,37 @@ Content-Type: application/json;type=entry
             },
             body: batchBody
         })
-            .then(response => response.json())
-            .then(data => {
-                console.log(data);
-                // Process batch response
-            })
-            .catch(error => console.error('Error:', error));
 
     }
 
+    function tableSelectionTest() {
+        Excel.run(async (context) => {
+            // Get a reference to the first table on the active worksheet
+            const table = context.workbook.worksheets.getActiveWorksheet().tables.getItemAt(0);
+
+            // Register an event handler for the onSelectionChanged event of the table
+            table.onSelectionChanged.add(handleSelectionChange);
+
+            // Load the name of the table for later use in the event handler
+            table.load('name');
+
+            await context.sync();
+
+            // Event handler function
+            function handleSelectionChange(args) {
+                console.log(`Selection changed in range: ${args.address}`);
+                // You can use args.tableId to work with the table that had a selection change
+
+                // Additional logic based on the selection change can be implemented here
+                // ...
+            }
+
+            console.log("Event handler for table selection change has been registered.");
+        }).catch(error => {
+            console.error(error);
+        });
+
+    }
 
 })();
 
