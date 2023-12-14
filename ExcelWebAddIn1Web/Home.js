@@ -693,6 +693,7 @@
                         if (table) {
                             // if the table found, then listen to the change in the table
                             tableListeners[tableName] = table.onChanged.add(handleTableChange)
+                            table.onSelectionChanged.add(handleSelectionChange);
                             console.log(`Events Listener Added: ${tableName}`)
                             break;
                         }
@@ -715,6 +716,8 @@
     // hanle table change.    tip: get after value from Excel if multiple range changes
     let handleTableChange = async (eventArgs) => {
         try {
+            let userChangeType = eventArgs.changeType
+
             Excel.run(function (ctx) {
                 // get the Range changed and the table changed
                 let range = ctx.workbook.worksheets.getActiveWorksheet().getRange(eventArgs.address)
@@ -736,39 +739,13 @@
                     let endRangeRowRelative = startRangeRowRelative + range.rowCount - 1
                     let endRangeColRelative = startRangeColRelative + range.columnCount - 1
 
-                    switch (eventArgs.changeType) {
-                        case 'RangeEdited':
-                            // test if this is triggered by undo deleting rows
-                            if (myTables[table.name].length < tableRange.rowCount) {
-                                // add the new rows then skip pasting using return directly
-                                for (let r = startRangeRowRelative; r <= endRangeRowRelative; r++) {
-                                    let jsonPayLoad = {}
-                                    for (let c = startRangeColRelative; c <= endRangeColRelative; c++) {
-                                        let displayColName = tableData[0][c]
-                                        // need a fieldNameConverter - mapping table required.
-                                        let logicalColNum = myTables[table.name][0].indexOf(displayColName)
-                                        if (logicalColNum > -1) {
-                                            let logicalColName = myTables[table.name][0][logicalColNum]
-                                            jsonPayLoad[logicalColName] = tableData[r][c]
-                                        }
-                                    }
-                                    if (Object.keys(jsonPayLoad).length > 0) {
-                                        // add the row in memory table as well
-                                        if (r + 1 > myTables[table.name].length) {
-                                            myTables[table.name].push([Date.now(), "waiting for guid"])
-                                        } else {
-                                            myTables[table.name].splice(r, 0, [Date.now(), "waiting for guid"])
-                                        }
-                                        // Add in P+ table
-                                        (async function () {
-                                            guidPromise = Create_D365(table.name, jsonPayLoad, "sensei_lessonlearnedid");
-                                            myTables[table.name][r][1] = await guidPromise
-                                        })()
-                                    }
-                                }
-                                return
-                            }
+                    // change the type from RangeEdited to RowInserted if user undo a row deletion
+                    if (userChangeType === 'RangeEdited' && myTables[table.name].length < tableRange.rowCount) {
+                        userChangeType = "RowInserted"
+                    }
 
+                    switch (userChangeType) {
+                        case 'RangeEdited':
                             // construct the JSON Payload
                             let jsonPayLoadColl = []
                             let guidColl = []
@@ -877,10 +854,16 @@
         } catch (error) {
             errorHandler(error.message)
         }
-
-
     }
 
+
+    async function handleSelectionChange(eventArgs) {
+
+        // hanlde table change first then handle range slection 
+        await handleTableChange
+        console.log(123)
+
+    }
 
 
     function batRequestTest(entityLogicalName) {
@@ -930,34 +913,7 @@ Content-Type: application/json;type=entry
 
     }
 
-    function tableSelectionTest() {
-        Excel.run(async (context) => {
-            // Get a reference to the first table on the active worksheet
-            const table = context.workbook.worksheets.getActiveWorksheet().tables.getItemAt(0);
 
-            // Register an event handler for the onSelectionChanged event of the table
-            table.onSelectionChanged.add(handleSelectionChange);
-
-            // Load the name of the table for later use in the event handler
-            table.load('name');
-
-            await context.sync();
-
-            // Event handler function
-            function handleSelectionChange(args) {
-                console.log(`Selection changed in range: ${args.address}`);
-                // You can use args.tableId to work with the table that had a selection change
-
-                // Additional logic based on the selection change can be implemented here
-                // ...
-            }
-
-            console.log("Event handler for table selection change has been registered.");
-        }).catch(error => {
-            console.error(error);
-        });
-
-    }
 
 })();
 
