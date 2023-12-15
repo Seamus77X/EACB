@@ -173,11 +173,11 @@
         try {
             // turn off the listener to the table when refreshing
             await toggleEventListener(false)
-                        //if (tableListeners[tableName]) {
-                        //    await Excel.run(tableListeners[tableName].context, async (ctx) => {
-                        //        tableListeners[tableName].remove();
+                        //if (tableListeners[tableID]) {
+                        //    await Excel.run(tableListeners[tableID].context, async (ctx) => {
+                        //        tableListeners[tableID].remove();
                         //        await ctx.sync();
-                        //        tableListeners[tableName] = null;
+                        //        tableListeners[tableID] = null;
                         //    });
                         //}
 
@@ -693,7 +693,7 @@
                         if (table) {
                             // if the table found, then listen to the change in the table
                             tableListeners[tableName] = table.onChanged.add(handleTableChange)
-                            table.onSelectionChanged.add(handleSelectionChange);
+                            table.worksheet.onSelectionChanged.add(handleSelectionChange);
                             console.log(`Events Listener Added: ${tableName}`)
                             break;
                         }
@@ -713,6 +713,8 @@
     }
 
     let guidPromise
+    let tableID
+    let rowChangeHistory = []
     // hanle table change.    tip: get after value from Excel if multiple range changes
     let handleTableChange = async (eventArgs) => {
         try {
@@ -725,9 +727,10 @@
                 let table = ctx.workbook.tables.getItem(eventArgs.tableId);
                 table.load("name")
                 let tableRange = table.getRange()
-                tableRange.load("rowIndex, columnIndex, rowCount, values")
+                tableRange.load("rowIndex, columnIndex, rowCount,columnCount, values")
 
                 return ctx.sync().then( async function () {
+                    tableID = eventArgs.tableId
 
                     let tableData = tableRange.values
                     let tableStartRow = tableRange.rowIndex;
@@ -739,111 +742,172 @@
                     let endRangeRowRelative = startRangeRowRelative + range.rowCount - 1
                     let endRangeColRelative = startRangeColRelative + range.columnCount - 1
 
+                    let rowChange = []
+                    // events handlers
+                    let rangeChangeHandler = async (startRow, endRow, startCol, endCol) => {
+                        // construct the JSON Payload
+                        let jsonPayLoadColl = []
+                        let guidColl = []
+
+                        for (let r = startRow; r <= endRow; r++) {
+                            // test if this is triggered by adding new rows from bottom
+                            if (Date.now() - myTables[table.name][r][0] <= 10 && userChangeType !== "UndoRowDeleted") {
+                                myTables[table.name][r][0] = "index 0"
+                                return
+                            }
+
+                            let jsonPayLoad = {}
+                            for (let c = startCol; c <= endCol; c++) {
+                                let displayColName = tableData[0][c]
+                                // need a fieldNameConverter - mapping table required.
+                                let logicalColNum = myTables[table.name][0].indexOf(displayColName)
+                                if (logicalColNum > -1) {
+                                    let logicalColName = myTables[table.name][0][logicalColNum]
+                                    jsonPayLoad[logicalColName] = tableData[r][c]
+                                }
+                            }
+                            if (Object.keys(jsonPayLoad).length > 0) {
+                                jsonPayLoadColl.push(jsonPayLoad)
+                                //let guidColNum = myTables[table.name][0].indexOf(guidColName)
+                                let guidColNum = 1
+                                await guidPromise
+                                guidColl.push(myTables[table.name][r][guidColNum])
+                            }
+                        }
+
+                        // start syncing by sending http request to D365 API
+                        if (guidColl.length > 0) {
+                            if (range.cellCount === 1) {
+                                // single cell is changed
+                                if (eventArgs.details === undefined || JSON.stringify(eventArgs.details.valueAsJsonAfter) !== JSON.stringify(eventArgs.details.valueAsJsonBefore)) {
+                                    Update_D365(table.name, guidColl[0], jsonPayLoadColl[0])
+                                    console.log(`Cell Updated: [${eventArgs.address}] in '${table.name}' table.`);
+                                }
+                            } else {
+                                // multiple range are changed
+                                guidColl.forEach(function (rowGUID, index) {
+                                    Update_D365(table.name, rowGUID, jsonPayLoadColl[index])
+                                })
+                            }
+                        }
+                    }
+                    let rowInsertedHandler = async (startRow, endRow, startCol, endCol) => {
+                        for (let r = startRow; r <= endRow; r++) {
+                            let jsonPayLoad = {}
+                            for (let c = startCol; c <= endCol; c++) {
+                                let displayColName = tableData[0][c]
+                                // need a fieldNameConverter - mapping table required.
+                                let logicalColNum = myTables[table.name][0].indexOf(displayColName)
+                                if (logicalColNum > -1) {
+                                    let logicalColName = myTables[table.name][0][logicalColNum]
+                                    jsonPayLoad[logicalColName] = tableData[r][c]
+                                }
+                            }
+                            if (Object.keys(jsonPayLoad).length > 0) {
+                                // add the row in memory table as well
+                                if (r + 1 > myTables[table.name].length) {
+                                    myTables[table.name].push([Date.now(), "waiting for guid"])
+                                } else {
+                                    myTables[table.name].splice(r, 0, [Date.now(), "waiting for guid"])
+                                }
+                                // Add in P+ table
+                                (async function () {
+                                    guidPromise = Create_D365(table.name, jsonPayLoad, "sensei_lessonlearnedid");
+                                    myTables[table.name][r][1] = await guidPromise
+                                    // keep a record in rowHistory array
+                                    rowChange.push([
+                                        "RowInserted",
+                                        r,
+                                        myTables[table.name][r][1],
+                                        range.address.split("!")[1]
+                                    ])
+                                })()
+                            }
+                        }
+                    }
+                    let rowDeletedHandler = async (startRow, endRow) => {
+                        // collect the row num of the rows deleted
+                        for (let r = endRow; r >= startRow; r--) {
+                            //let guidColNum = myTables[table.name][0].indexOf(guidColName)
+                            let guidColNum = 1
+                            // delete the rows in P+ table
+                            Delete_D365(table.name, myTables[table.name][r][guidColNum])
+                            // delete the row in memeory table as well
+                            myTables[table.name].splice(r, 1)
+                            // keep a record in rowHistory array
+                            rowChange.push([
+                                "RowDeleted",
+                                r,
+                                "no id",
+                                range.address.split("!")[1]
+                            ])
+                        }
+                    }
+
                     // change the type from RangeEdited to RowInserted if user undo a row deletion
-                    if (userChangeType === 'RangeEdited' && myTables[table.name].length < tableRange.rowCount) {
-                        userChangeType = "RowInserted"
+                    if (rowChangeHistory.length !== 0 && myTables[table.name].length < tableRange.rowCount) {
+                        let previousRowChanged = rowChangeHistory.at(-1).length
+                        let previousRowChangeType = rowChangeHistory.at(-1)[0][0]
+                        let previousRowChangedNum = rowChangeHistory.at(-1)[0][1]
+
+                        // only if last history is row deletion
+                        if (previousRowChangeType === "RowDeleted") {
+                            // when the trigger event is range edit
+                            if (userChangeType === 'RangeEdited') {
+                                userChangeType ="UndoRowDeleted"
+                            }
+                        }
+                        
                     }
 
                     switch (userChangeType) {
                         case 'RangeEdited':
-                            // construct the JSON Payload
-                            let jsonPayLoadColl = []
-                            let guidColl = []
+                            rangeChangeHandler(startRangeRowRelative, endRangeRowRelative, startRangeColRelative, endRangeColRelative)
 
-                            for (let r = startRangeRowRelative; r <= endRangeRowRelative; r++) {
-                                // test if this is triggered by adding new rows from bottom
-                                if (Date.now() - myTables[table.name][r][0] <= 10) {
-                                    myTables[table.name][r][0] = "index 0"
-                                    return
-                                }
-
-                                let jsonPayLoad = {}
-                                for (let c = startRangeColRelative; c <= endRangeColRelative; c++) {
-                                    let displayColName = tableData[0][c]
-                                    // need a fieldNameConverter - mapping table required.
-                                    let logicalColNum = myTables[table.name][0].indexOf(displayColName)
-                                    if (logicalColNum > -1) {
-                                        let logicalColName = myTables[table.name][0][logicalColNum]
-                                        jsonPayLoad[logicalColName] = tableData[r][c]
-                                    }
-                                }
-                                if (Object.keys(jsonPayLoad).length > 0) {
-                                    jsonPayLoadColl.push(jsonPayLoad)
-                                    //let guidColNum = myTables[table.name][0].indexOf(guidColName)
-                                    let guidColNum = 1
-                                    await guidPromise
-                                    guidColl.push(myTables[table.name][r][guidColNum])
-                                }
-                            }
-
-                            // start syncing by sending http request to D365 API
-                            if (guidColl.length > 0) {
-                                if (range.cellCount === 1) {
-                                    // single cell is changed
-                                    if (eventArgs.details === undefined || JSON.stringify(eventArgs.details.valueAsJsonAfter) !== JSON.stringify(eventArgs.details.valueAsJsonBefore)) {
-                                        Update_D365(table.name, guidColl[0], jsonPayLoadColl[0])
-                                        console.log(`Cell Updated: [${eventArgs.address}] in '${table.name}' table.`);
-                                    }
-                                } else {
-                                    // multiple range are changed
-                                    guidColl.forEach(function (rowGUID, index) {
-                                        Update_D365(table.name, rowGUID, jsonPayLoadColl[index])
-                                    })
-                                    console.log(`Range Updated: [${eventArgs.address}] in '${table.name}' table.`);
-                                }
-                            }
+                            console.log(`Range Updated: [${range.address}] in '${table.name}' table.`);
                             break;
                         case "RowInserted":
-                            for (let r = startRangeRowRelative; r <= endRangeRowRelative; r++) {
-                                let jsonPayLoad = {}
-                                for (let c = startRangeColRelative; c <= endRangeColRelative; c++) {
-                                    let displayColName = tableData[0][c]
-                                    // need a fieldNameConverter - mapping table required.
-                                    let logicalColNum = myTables[table.name][0].indexOf(displayColName)
-                                    if (logicalColNum > -1) {
-                                        let logicalColName = myTables[table.name][0][logicalColNum]
-                                        jsonPayLoad[logicalColName] = tableData[r][c]
-                                    }
-                                }
-                                if (Object.keys(jsonPayLoad).length > 0) {
-                                    // add the row in memory table as well
-                                    if (r + 1 > myTables[table.name].length) {
-                                        myTables[table.name].push([Date.now(), "waiting for guid"])
-                                    } else {
-                                        myTables[table.name].splice(r, 0, [Date.now(), "waiting for guid"])
-                                    }
-                                    // Add in P+ table
-                                    (async function () {
-                                        guidPromise = Create_D365(table.name, jsonPayLoad, "sensei_lessonlearnedid");
-                                        myTables[table.name][r][1] = await guidPromise
-                                    })()
-                                }
-                            }
-                            console.log(`Row Inserted: [${eventArgs.address}] in '${table.name}' table.`)
+                            rowInsertedHandler(startRangeRowRelative, endRangeRowRelative, startRangeColRelative, endRangeColRelative)
+                            rowChangeHistory.push(rowChange)
+
+                            console.log(`Row Inserted: [${range.address}] in '${table.name}' table.`)
                             break;
                         case "RowDeleted":
-                            // collect the row num of the rows deleted
-                            for (let r = endRangeRowRelative; r >= startRangeRowRelative ; r--) {
-                                //let guidColNum = myTables[table.name][0].indexOf(guidColName)
-                                let guidColNum = 1
-                                // delete the rows in P+ table
-                                Delete_D365(table.name, myTables[table.name][r][guidColNum])
-                                // delete the row in memeory table as well
-                                myTables[table.name].splice(r,1)
-                            }
-                            console.log(`Row Deleted: [${eventArgs.address}] in '${table.name}' table.`)
+                            rowDeletedHandler(startRangeRowRelative, endRangeRowRelative)
+                            rowChangeHistory.push(rowChange)
+
+                            console.log(`Row Deleted: [${range.address}] in '${table.name}' table.`)
                             break;
                         case "ColumnInserted":
-                            console.log(`Column Inserted: [${eventArgs.address}] in '${table.name}' table.`)
+                            
+                            console.log(`Column Inserted: [${range.address}] in '${table.name}' table.`)
                             break;
                         case "ColumnDeleted":
-                            console.log(`Column Deleted [${eventArgs.address}] in '${table.name}' table.`)
+                            
+                            console.log(`Column Deleted [${range.address}] in '${table.name}' table.`)
+                            break;
+                        case "UndoRowDeleted":
+                            let startRangeRowRelative_history = rowChangeHistory.at(-1).at(-1)[1]
+                            let startRangeColRelative_history = 0
+                            let endRangeRowRelative_history = rowChangeHistory.at(-1)[0][1]
+                            let endRangeColRelative_history = tableRange.columnCount
+                            let rowDeletedAddress = rowChangeHistory.at(-1)[0][3]
+
+                            rowInsertedHandler(startRangeRowRelative_history, endRangeRowRelative_history, startRangeColRelative_history, endRangeColRelative_history)
+                            //rangeChangeHandler(startRangeRowRelative, endRangeRowRelative, startRangeColRelative, endRangeColRelative)
+                            rowChangeHistory.pop()
+
+                            console.log(`Row Deletion Undone: [${rowDeletedAddress}] in '${table.name}' table.`)
+                            break;
+                        case "UndoRowAdded":
+
+                            console.log(`Row Addition Undone: [${range.address}] in '${table.name}' table.`)
                             break;
                         case "CellInserted":
-                            console.log(`Cell [${eventArgs.address}] in '${table.name}' table.`)
+                            console.log(`Cell [${range.address}] in '${table.name}' table.`)
                             break;
                         case "CellDeleted":
-                            console.log(`Cell [${eventArgs.address}] in '${table.name}' table.`)
+                            console.log(`Cell [${range.address}] in '${table.name}' table.`)
                             break;
                         default:
                             console.log(`Unknown action.`)
@@ -859,9 +923,31 @@
 
     async function handleSelectionChange(eventArgs) {
 
-        // hanlde table change first then handle range slection 
-        await handleTableChange
-        console.log(123)
+        if (tableID === undefined) {
+            return
+        }
+
+        Excel.run(function (ctx) {
+            let table = ctx.workbook.tables.getItem(tableID);
+            table.load("name")
+            let tableRange = table.getRange()
+            tableRange.load("rowCount,columnCount, values")
+            let triggerCell = tableRange.getCell(1, 0)
+            triggerCell.load("values")
+
+            return ctx.sync().then( async () => {
+                    if (rowChangeHistory.length !== 0 && myTables[table.name].length < tableRange.rowCount) {
+                        let previousRowChangeType = rowChangeHistory.at(-1)[0][0]
+
+                        // only if last history is row deletion
+                        if (previousRowChangeType === "RowDeleted") {
+                            triggerCell.values = triggerCell.values
+                        }
+                    } 
+            })
+        })
+
+        console.log(eventArgs.address)
 
     }
 
