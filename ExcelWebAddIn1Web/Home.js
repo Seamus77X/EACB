@@ -112,9 +112,7 @@
     Office.actions.associate("buttonFunction", function (event) {
         console.log('Hey, you just pressed a ribbon button.')
 
-
-        //batRequestTest("sensei_lessonslearned")
-        tableSelectionTest()
+        console.log(rowChangeHistory)
 
         event.completed();
     })
@@ -729,8 +727,16 @@
                 let tableRange = table.getRange()
                 tableRange.load("rowIndex, columnIndex, rowCount,columnCount, values")
 
-                return ctx.sync().then( async function () {
+                return ctx.sync().then(async function () {
                     tableID = eventArgs.tableId
+
+                    let startRangeRowRelative_history
+                    let startRangeColRelative_history
+                    let endRangeRowRelative_history
+                    let endRangeColRelative_history
+
+                    let rowChange = []
+                    let ignoreThis
 
                     let tableData = tableRange.values
                     let tableStartRow = tableRange.rowIndex;
@@ -742,18 +748,16 @@
                     let endRangeRowRelative = startRangeRowRelative + range.rowCount - 1
                     let endRangeColRelative = startRangeColRelative + range.columnCount - 1
 
-                    let rowChange = []
                     // events handlers
                     let rangeChangeHandler = async (startRow, endRow, startCol, endCol) => {
                         // construct the JSON Payload
                         let jsonPayLoadColl = []
                         let guidColl = []
-
+                        
                         for (let r = startRow; r <= endRow; r++) {
                             // test if this is triggered by adding new rows from bottom
-                            if (Date.now() - myTables[table.name][r][0] <= 10 && userChangeType !== "UndoRowDeleted") {
-                                myTables[table.name][r][0] = "index 0"
-                                return
+                            if (Date.now() - myTables[table.name][r][0] <= 10) {
+                                return "ignore this"
                             }
 
                             let jsonPayLoad = {}
@@ -779,9 +783,10 @@
                         if (guidColl.length > 0) {
                             if (range.cellCount === 1) {
                                 // single cell is changed
-                                if (eventArgs.details === undefined || JSON.stringify(eventArgs.details.valueAsJsonAfter) !== JSON.stringify(eventArgs.details.valueAsJsonBefore)) {
+                                if (eventArgs.details !== undefined && JSON.stringify(eventArgs.details.valueAsJsonAfter) !== JSON.stringify(eventArgs.details.valueAsJsonBefore)) {
                                     Update_D365(table.name, guidColl[0], jsonPayLoadColl[0])
-                                    console.log(`Cell Updated: [${eventArgs.address}] in '${table.name}' table.`);
+                                } else {
+                                    return "ignore this"
                                 }
                             } else {
                                 // multiple range are changed
@@ -814,14 +819,13 @@
                                 (async function () {
                                     guidPromise = Create_D365(table.name, jsonPayLoad, "sensei_lessonlearnedid");
                                     myTables[table.name][r][1] = await guidPromise
-                                    // keep a record in rowHistory array
-                                    rowChange.push([
-                                        "RowInserted",
-                                        r,
-                                        myTables[table.name][r][1],
-                                        range.address.split("!")[1]
-                                    ])
                                 })()
+                                // keep a record in rowHistory array
+                                rowChange.push([
+                                    "RowInserted",
+                                    r,
+                                    range.address.split("!")[1]
+                                ])
                             }
                         }
                     }
@@ -838,76 +842,87 @@
                             rowChange.push([
                                 "RowDeleted",
                                 r,
-                                "no id",
                                 range.address.split("!")[1]
                             ])
                         }
                     }
 
                     // change the type from RangeEdited to RowInserted if user undo a row deletion
-                    if (rowChangeHistory.length !== 0 && myTables[table.name].length < tableRange.rowCount) {
-                        let previousRowChanged = rowChangeHistory.at(-1).length
-                        let previousRowChangeType = rowChangeHistory.at(-1)[0][0]
-                        let previousRowChangedNum = rowChangeHistory.at(-1)[0][1]
-
-                        // only if last history is row deletion
-                        if (previousRowChangeType === "RowDeleted") {
-                            // when the trigger event is range edit
-                            if (userChangeType === 'RangeEdited') {
-                                userChangeType ="UndoRowDeleted"
+                    if (rowChangeHistory.length !== 0) {
+                        if (myTables[table.name].length < tableRange.rowCount) {
+                            let previousRowChangeType = rowChangeHistory.at(-1)[0][0]
+                            // only when last history is row deletion and the trigger event is range edit
+                            if (previousRowChangeType === "RowDeleted" && userChangeType === 'RangeEdited') {
+                                userChangeType = "UndoRowDeleted"
+                            }
+                        } else if (myTables[table.name].length > tableRange.rowCount) {
+                            let previousRowChangeType = rowChangeHistory.at(-1)[0][0]
+                            // only when last history is row addition and the trigger event is range edit
+                            if (previousRowChangeType === "RowInserted" && userChangeType === 'RangeEdited') {
+                                userChangeType = "UndoRowAdded"
                             }
                         }
-                        
                     }
 
                     switch (userChangeType) {
                         case 'RangeEdited':
-                            rangeChangeHandler(startRangeRowRelative, endRangeRowRelative, startRangeColRelative, endRangeColRelative)
+                            let result = await rangeChangeHandler(startRangeRowRelative, endRangeRowRelative, startRangeColRelative, endRangeColRelative)
 
-                            console.log(`Range Updated: [${range.address}] in '${table.name}' table.`);
-                            break;
+                            if (result === "ignore this") {
+                                break;
+                            } else {
+                                console.log(`Range Updated: [${eventArgs.address}] in '${table.name}' table.`);
+                                break;
+                            }
                         case "RowInserted":
                             rowInsertedHandler(startRangeRowRelative, endRangeRowRelative, startRangeColRelative, endRangeColRelative)
                             rowChangeHistory.push(rowChange)
 
-                            console.log(`Row Inserted: [${range.address}] in '${table.name}' table.`)
+                            console.log(`Row Inserted: [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "RowDeleted":
                             rowDeletedHandler(startRangeRowRelative, endRangeRowRelative)
                             rowChangeHistory.push(rowChange)
 
-                            console.log(`Row Deleted: [${range.address}] in '${table.name}' table.`)
+                            console.log(`Row Deleted: [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "ColumnInserted":
                             
-                            console.log(`Column Inserted: [${range.address}] in '${table.name}' table.`)
+                            console.log(`Column Inserted: [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "ColumnDeleted":
                             
-                            console.log(`Column Deleted [${range.address}] in '${table.name}' table.`)
+                            console.log(`Column Deleted [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "UndoRowDeleted":
-                            let startRangeRowRelative_history = rowChangeHistory.at(-1).at(-1)[1]
-                            let startRangeColRelative_history = 0
-                            let endRangeRowRelative_history = rowChangeHistory.at(-1)[0][1]
-                            let endRangeColRelative_history = tableRange.columnCount
-                            let rowDeletedAddress = rowChangeHistory.at(-1)[0][3]
+                            startRangeRowRelative_history = rowChangeHistory.at(-1).at(-1)[1]
+                            startRangeColRelative_history = 0
+                            endRangeRowRelative_history = rowChangeHistory.at(-1)[0][1]
+                            endRangeColRelative_history = tableRange.columnCount
+                            let rowDeletedAddress = rowChangeHistory.at(-1)[0][2]
 
                             rowInsertedHandler(startRangeRowRelative_history, endRangeRowRelative_history, startRangeColRelative_history, endRangeColRelative_history)
-                            //rangeChangeHandler(startRangeRowRelative, endRangeRowRelative, startRangeColRelative, endRangeColRelative)
-                            rowChangeHistory.pop()
+                            rowChangeHistory.pop() // delete previous rowDeleted history
+                            rowChangeHistory.push(rowChange) // add this rowAdded history
 
                             console.log(`Row Deletion Undone: [${rowDeletedAddress}] in '${table.name}' table.`)
                             break;
                         case "UndoRowAdded":
+                            startRangeRowRelative_history = rowChangeHistory.at(-1)[0][1]
+                            endRangeRowRelative_history = rowChangeHistory.at(-1).at(-1)[1]
+                            let rowAddedAddress = rowChangeHistory.at(-1)[0][2]
 
-                            console.log(`Row Addition Undone: [${range.address}] in '${table.name}' table.`)
+                            rowDeletedHandler(startRangeRowRelative_history, endRangeRowRelative_history)
+                            rowChangeHistory.pop() // delete previous rowAdded history
+                            rowChangeHistory.push(rowChange) // add this rowDeleted history
+
+                            console.log(`Row Addition Undone: [${rowAddedAddress}] in '${table.name}' table.`)
                             break;
                         case "CellInserted":
-                            console.log(`Cell [${range.address}] in '${table.name}' table.`)
+                            console.log(`Cell [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "CellDeleted":
-                            console.log(`Cell [${range.address}] in '${table.name}' table.`)
+                            console.log(`Cell [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         default:
                             console.log(`Unknown action.`)
@@ -936,20 +951,17 @@
             triggerCell.load("values")
 
             return ctx.sync().then( async () => {
-                    if (rowChangeHistory.length !== 0 && myTables[table.name].length < tableRange.rowCount) {
-                        let previousRowChangeType = rowChangeHistory.at(-1)[0][0]
-
-                        // only if last history is row deletion
-                        if (previousRowChangeType === "RowDeleted") {
-                            triggerCell.values = triggerCell.values
-                        }
-                    } 
+                if (rowChangeHistory.length !== 0 && myTables[table.name].length !== tableRange.rowCount) {
+                    // trigger the undo event
+                    triggerCell.values = triggerCell.values
+                } 
             })
         })
 
         console.log(eventArgs.address)
 
     }
+
 
 
     function batRequestTest(entityLogicalName) {
