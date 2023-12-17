@@ -112,8 +112,10 @@
     Office.actions.associate("buttonFunction", function (event) {
         console.log('Hey, you just pressed a ribbon button.')
 
-        console.log(rowChangeHistory)
-
+        console.log("Undo List")
+        console.log(rowChangeHistory_Undo)
+        console.log("Redo List")
+        console.log(rowChangeHistory_Redo)
         event.completed();
     })
 
@@ -326,6 +328,10 @@
             toggleEventListener(true)
             // add listener to the table if no listener
             registerTableChangeEvent(tableName)
+
+            // clearn redo and undo lists when refreshing
+            rowChangeHistory_Undo = []
+            rowChangeHistory_Redo = []
         }
     }
 
@@ -389,7 +395,7 @@
 
     async function updateData() {
         Update_D365('sensei_lessonslearned', '0f0db491-3421-ee11-9966-000d3a798402', { 'sc_additionalcommentsnotes': 'Update Test' })
-        //Create_D365('sensei_lessonslearned', { 'sensei_name': 'Add Test', 'sc_additionalcommentsnotes': 'ADD test from Web Add-In' })
+        //Create_D365('sensei_lessonslearned', { 'sensei_name': 'Add Test', 'sc_additionalcommentsnotes': 'ADD Redo_Undo_Event_Done from Web Add-In' })
         //Delete_D365('sensei_lessonslearned','f38edda5-8d8d-ee11-be35-6045bd3db52a')
     }
 
@@ -710,12 +716,76 @@
         }
     }
 
+
     let guidPromise
     let tableID
-    let rowChangeHistory = []
+    let rowChangeHistory_Undo = []
+    let rowChangeHistory_Redo = []
+    let rowChange = []
+    // row change events handlers
+    let rowInsertedHandler = async (startRow, endRow, startCol, endCol, tableName, tableData, rangeAddress) => {
+        for (let r = startRow; r <= endRow; r++) {
+            let jsonPayLoad = {}
+            for (let c = startCol; c <= endCol; c++) {
+                let displayColName = tableData[0][c]
+                // need a fieldNameConverter - mapping table required.
+                let logicalColNum = myTables[tableName][0].indexOf(displayColName)
+                if (logicalColNum > -1) {
+                    let logicalColName = myTables[tableName][0][logicalColNum]
+                    jsonPayLoad[logicalColName] = tableData[r][c]
+                }
+            }
+            if (Object.keys(jsonPayLoad).length > 0) {
+                // add the row in memory table as well
+                if (r + 1 > myTables[tableName].length) {
+                    myTables[tableName].push([Date.now(), "waiting for guid"])
+                } else {
+                    myTables[tableName].splice(r, 0, [Date.now(), "waiting for guid"])
+                }
+                // Add in P+ table
+                (async function () {
+                    guidPromise = Create_D365(tableName, jsonPayLoad, "sensei_lessonlearnedid");
+                    myTables[tableName][r][1] = await guidPromise
+                })()
+                // keep a record in rowHistory array
+                rowChange.push([
+                    "RowInserted",  // change type
+                    r,              // relative row num in the table
+                    rangeAddress,   // range address in the sheet
+                ])
+            }
+        }
+    }
+    let rowDeletedHandler = async (startRow, endRow, tableName, rangeAddress) => {
+        // collect the row num of the rows deleted
+        for (let r = endRow; r >= startRow; r--) {
+            //let guidColNum = myTables[table.name][0].indexOf(guidColName)
+            let guidColNum = 1
+
+            await guidPromise
+            // delete the rows in P+ table
+            Delete_D365(tableName, myTables[tableName][r][guidColNum])
+            // delete the row in memeory table as well
+            myTables[tableName].splice(r, 1)
+            // keep a record in rowHistory array
+            rowChange.push([
+                "RowDeleted",  // change type
+                r,              // relative row num in the table
+                rangeAddress,   // range address in the sheet
+            ])
+        }
+    }
     // hanle table change.    tip: get after value from Excel if multiple range changes
-    let handleTableChange = async (eventArgs) => {
+    async function handleTableChange(eventArgs) {
         try {
+            if (Date.now() - sheetEventTime < 5) {
+                await sheetEvent
+                if (Redo_Undo_Event_Done) {
+                    Redo_Undo_Event_Done=false
+                    return
+                }
+            }
+
             let userChangeType = eventArgs.changeType
 
             Excel.run(function (ctx) {
@@ -734,9 +804,7 @@
                     let startRangeColRelative_history
                     let endRangeRowRelative_history
                     let endRangeColRelative_history
-
-                    let rowChange = []
-                    let ignoreThis
+                    let rowAddress
 
                     let tableData = tableRange.values
                     let tableStartRow = tableRange.rowIndex;
@@ -748,14 +816,14 @@
                     let endRangeRowRelative = startRangeRowRelative + range.rowCount - 1
                     let endRangeColRelative = startRangeColRelative + range.columnCount - 1
 
-                    // events handlers
+                    // range content change event handler
                     let rangeChangeHandler = async (startRow, endRow, startCol, endCol) => {
                         // construct the JSON Payload
                         let jsonPayLoadColl = []
                         let guidColl = []
-                        
+
                         for (let r = startRow; r <= endRow; r++) {
-                            // test if this is triggered by adding new rows from bottom
+                            // Redo_Undo_Event_Done if this is triggered by adding new rows from bottom
                             if (Date.now() - myTables[table.name][r][0] <= 10) {
                                 return "ignore this"
                             }
@@ -796,70 +864,30 @@
                             }
                         }
                     }
-                    let rowInsertedHandler = async (startRow, endRow, startCol, endCol) => {
-                        for (let r = startRow; r <= endRow; r++) {
-                            let jsonPayLoad = {}
-                            for (let c = startCol; c <= endCol; c++) {
-                                let displayColName = tableData[0][c]
-                                // need a fieldNameConverter - mapping table required.
-                                let logicalColNum = myTables[table.name][0].indexOf(displayColName)
-                                if (logicalColNum > -1) {
-                                    let logicalColName = myTables[table.name][0][logicalColNum]
-                                    jsonPayLoad[logicalColName] = tableData[r][c]
-                                }
-                            }
-                            if (Object.keys(jsonPayLoad).length > 0) {
-                                // add the row in memory table as well
-                                if (r + 1 > myTables[table.name].length) {
-                                    myTables[table.name].push([Date.now(), "waiting for guid"])
-                                } else {
-                                    myTables[table.name].splice(r, 0, [Date.now(), "waiting for guid"])
-                                }
-                                // Add in P+ table
-                                (async function () {
-                                    guidPromise = Create_D365(table.name, jsonPayLoad, "sensei_lessonlearnedid");
-                                    myTables[table.name][r][1] = await guidPromise
-                                })()
-                                // keep a record in rowHistory array
-                                rowChange.push([
-                                    "RowInserted",
-                                    r,
-                                    range.address.split("!")[1]
-                                ])
-                            }
-                        }
-                    }
-                    let rowDeletedHandler = async (startRow, endRow) => {
-                        // collect the row num of the rows deleted
-                        for (let r = endRow; r >= startRow; r--) {
-                            //let guidColNum = myTables[table.name][0].indexOf(guidColName)
-                            let guidColNum = 1
-                            // delete the rows in P+ table
-                            Delete_D365(table.name, myTables[table.name][r][guidColNum])
-                            // delete the row in memeory table as well
-                            myTables[table.name].splice(r, 1)
-                            // keep a record in rowHistory array
-                            rowChange.push([
-                                "RowDeleted",
-                                r,
-                                range.address.split("!")[1]
-                            ])
-                        }
-                    }
 
                     // change the type from RangeEdited to RowInserted if user undo a row deletion
-                    if (rowChangeHistory.length !== 0) {
+                    if (rowChangeHistory_Undo.length > 0 || rowChangeHistory_Redo.length > 0) {
+
+                        let previousRowChangeType = undefined
+                        if (rowChangeHistory_Undo.length > 0) {
+                            previousRowChangeType = rowChangeHistory_Undo.at(-1)[0][0]
+                        }
+                        let nextRowChangeType = undefined
+                        if (rowChangeHistory_Redo.length > 0) {
+                            nextRowChangeType = rowChangeHistory_Redo.at(-1)[0][0]
+                        }
+
                         if (myTables[table.name].length < tableRange.rowCount) {
-                            let previousRowChangeType = rowChangeHistory.at(-1)[0][0]
-                            // only when last history is row deletion and the trigger event is range edit
                             if (previousRowChangeType === "RowDeleted" && userChangeType === 'RangeEdited') {
                                 userChangeType = "UndoRowDeleted"
+                            } else if (nextRowChangeType === "RowInserted" && userChangeType === 'RangeEdited') {
+                                userChangeType = "RedoRowInserted"
                             }
                         } else if (myTables[table.name].length > tableRange.rowCount) {
-                            let previousRowChangeType = rowChangeHistory.at(-1)[0][0]
-                            // only when last history is row addition and the trigger event is range edit
                             if (previousRowChangeType === "RowInserted" && userChangeType === 'RangeEdited') {
-                                userChangeType = "UndoRowAdded"
+                                userChangeType = "UndoRowInserted"
+                            } else if (nextRowChangeType === "RowDeleted" && userChangeType === 'RangeEdited') {
+                                userChangeType = "RedoRowDeleted"
                             }
                         }
                     }
@@ -871,52 +899,85 @@
                             if (result === "ignore this") {
                                 break;
                             } else {
+                                // clean redo if new change
+                                rowChangeHistory_Redo = []
+
                                 console.log(`Range Updated: [${eventArgs.address}] in '${table.name}' table.`);
                                 break;
                             }
                         case "RowInserted":
-                            rowInsertedHandler(startRangeRowRelative, endRangeRowRelative, startRangeColRelative, endRangeColRelative)
-                            rowChangeHistory.push(rowChange)
+                            await rowInsertedHandler(startRangeRowRelative, endRangeRowRelative, startRangeColRelative, endRangeColRelative, table.name, tableData, range.address.split("!")[1])
+                            rowChangeHistory_Undo.push(rowChange)
+                            rowChange = []
+                            // clean redo if new change
+                            rowChangeHistory_Redo = []
 
                             console.log(`Row Inserted: [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "RowDeleted":
-                            rowDeletedHandler(startRangeRowRelative, endRangeRowRelative)
-                            rowChangeHistory.push(rowChange)
+                            await rowDeletedHandler(startRangeRowRelative, endRangeRowRelative, table.name, range.address.split("!")[1])
+                            rowChangeHistory_Undo.push(rowChange)
+                            rowChange = []
+                            // clean redo if new change
+                            rowChangeHistory_Redo = []
 
                             console.log(`Row Deleted: [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "ColumnInserted":
-                            
+
                             console.log(`Column Inserted: [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "ColumnDeleted":
-                            
+
                             console.log(`Column Deleted [${eventArgs.address}] in '${table.name}' table.`)
                             break;
                         case "UndoRowDeleted":
-                            startRangeRowRelative_history = rowChangeHistory.at(-1).at(-1)[1]
+                            startRangeRowRelative_history = rowChangeHistory_Undo.at(-1).at(-1)[1]
                             startRangeColRelative_history = 0
-                            endRangeRowRelative_history = rowChangeHistory.at(-1)[0][1]
+                            endRangeRowRelative_history = rowChangeHistory_Undo.at(-1)[0][1]
                             endRangeColRelative_history = tableRange.columnCount
-                            let rowDeletedAddress = rowChangeHistory.at(-1)[0][2]
+                            rowAddress = rowChangeHistory_Undo.at(-1)[0][2]
 
-                            rowInsertedHandler(startRangeRowRelative_history, endRangeRowRelative_history, startRangeColRelative_history, endRangeColRelative_history)
-                            rowChangeHistory.pop() // delete previous rowDeleted history
-                            rowChangeHistory.push(rowChange) // add this rowAdded history
+                            rowInsertedHandler(startRangeRowRelative_history, endRangeRowRelative_history, startRangeColRelative_history, endRangeColRelative_history, table.name, tableData)
+                            rowChangeHistory_Redo.push(rowChangeHistory_Undo.pop()) // delete previous rowDeleted history // add this rowAdded history
+                            rowChange = []
 
-                            console.log(`Row Deletion Undone: [${rowDeletedAddress}] in '${table.name}' table.`)
+                            console.log(`Undo Row Deletion: [${rowAddress}] in '${table.name}' table.`)
                             break;
-                        case "UndoRowAdded":
-                            startRangeRowRelative_history = rowChangeHistory.at(-1)[0][1]
-                            endRangeRowRelative_history = rowChangeHistory.at(-1).at(-1)[1]
-                            let rowAddedAddress = rowChangeHistory.at(-1)[0][2]
+                        case "RedoRowInserted":
+                            startRangeRowRelative_history = rowChangeHistory_Redo.at(-1)[0][1]
+                            startRangeColRelative_history = 0
+                            endRangeRowRelative_history = rowChangeHistory_Redo.at(-1).at(-1)[1]
+                            endRangeColRelative_history = tableRange.columnCount
+                            rowAddress = rowChangeHistory_Redo.at(-1)[0][2]
 
-                            rowDeletedHandler(startRangeRowRelative_history, endRangeRowRelative_history)
-                            rowChangeHistory.pop() // delete previous rowAdded history
-                            rowChangeHistory.push(rowChange) // add this rowDeleted history
+                            rowInsertedHandler(startRangeRowRelative_history, endRangeRowRelative_history, startRangeColRelative_history, endRangeColRelative_history, table.name, tableRange.values)
+                            rowChangeHistory_Undo.push(rowChangeHistory_Redo.pop()) // add this rowAdded history // delete previous rowDeleted history
+                            rowChange = []
 
-                            console.log(`Row Addition Undone: [${rowAddedAddress}] in '${table.name}' table.`)
+                            console.log(`Redo Row Addition: [${rowAddress}] in '${table.name}' table.`)
+                            break;
+                        case "UndoRowInserted":
+                            startRangeRowRelative_history = rowChangeHistory_Undo.at(-1)[0][1]
+                            endRangeRowRelative_history = rowChangeHistory_Undo.at(-1).at(-1)[1]
+                            rowAddress = rowChangeHistory_Undo.at(-1)[0][2]
+
+                            rowDeletedHandler(startRangeRowRelative_history, endRangeRowRelative_history, table.name)
+                            rowChangeHistory_Redo.push(rowChangeHistory_Undo.pop()) // delete previous rowAdded history // add this rowDeleted history
+                            rowChange = []
+
+                            console.log(`Undo Row Addition: [${rowAddress}] in '${table.name}' table.`)
+                            break;
+                        case "RedoRowDeleted":
+                            startRangeRowRelative_history = rowChangeHistory_Redo.at(-1).at(-1)[1]
+                                endRangeRowRelative_history = rowChangeHistory_Redo.at(-1)[0][1]
+                            rowAddress = rowChangeHistory_Redo.at(-1)[0][2]
+
+                            rowDeletedHandler(startRangeRowRelative_history, endRangeRowRelative_history, table.name)
+                            rowChangeHistory_Undo.push(rowChangeHistory_Redo.pop()) // delete previous rowAdded history // add this rowDeleted history
+                            rowChange = []
+
+                            console.log(`Redo Row Deletion: [${rowAddress}] in '${table.name}' table.`)
                             break;
                         case "CellInserted":
                             console.log(`Cell [${eventArgs.address}] in '${table.name}' table.`)
@@ -935,32 +996,130 @@
         }
     }
 
+    let Redo_Undo_Event_Done
+    let sheetEvent 
+    let sheetEventTime
+    function handleSelectionChange(eventArgs) {
+        // apply to undo row deletion using resizing and undo row addition
 
-    async function handleSelectionChange(eventArgs) {
+        //undo row deletion - between: (table event does work at beginning)
+        //1. sheet selection event => table change event
+        //row added => table event: undo row addition => match => no need range A2 to trigger
 
-        if (tableID === undefined) {
-            return
+        //undo row addition and undo row deletion - resizing: (table event does not work at beginning)
+        //1. sheet selection event => table change event
+        //row deleted => range A2 changed => table event: undo row addition
+        try {
+            if (tableID === undefined) {
+                return
+            }
+
+            sheetEventTime=Date.now()
+            sheetEvent = Excel.run(function (ctx) {
+                let table = ctx.workbook.tables.getItem(tableID);
+                table.load("name")
+                let tableRange = table.getRange()
+                tableRange.load("rowCount,columnCount, values")
+                let triggerCell = tableRange.getCell(1, 0)
+                triggerCell.load("values")
+
+                return ctx.sync().then(async () => {
+                    if (rowChangeHistory_Undo.length > 0 || rowChangeHistory_Redo.length > 0) {
+                        let startRangeRowRelative_history
+                        let startRangeColRelative_history
+                        let endRangeRowRelative_history
+                        let endRangeColRelative_history
+                        let rowAddress
+
+                        let previousRowChangeType = undefined
+                        if (rowChangeHistory_Undo.length > 0) {
+                            previousRowChangeType = rowChangeHistory_Undo.at(-1)[0][0]
+                        }
+                        let nextRowChangeType = undefined
+                        if (rowChangeHistory_Redo.length > 0) {
+                            nextRowChangeType = rowChangeHistory_Redo.at(-1)[0][0]
+                        }
+
+                        if (myTables[table.name].length < tableRange.rowCount) {
+                            Redo_Undo_Event_Done = true
+                            // undo row deleted
+                            if (previousRowChangeType === "RowDeleted") {
+                                startRangeRowRelative_history = rowChangeHistory_Undo.at(-1).at(-1)[1]
+                                startRangeColRelative_history = 0
+                                endRangeRowRelative_history = rowChangeHistory_Undo.at(-1)[0][1]
+                                endRangeColRelative_history = tableRange.columnCount
+                                rowAddress = rowChangeHistory_Undo.at(-1)[0][2]
+
+                                rowInsertedHandler(startRangeRowRelative_history, endRangeRowRelative_history, startRangeColRelative_history, endRangeColRelative_history, table.name, tableRange.values)
+                                rowChangeHistory_Redo.push(rowChangeHistory_Undo.pop()) // add this rowAdded history // delete previous rowDeleted history
+                                rowChange = []
+
+                                console.log(`Undo Row Deletion: [${rowAddress}] in '${table.name}' table.`)
+                            } else if (nextRowChangeType === "RowInserted") {
+                                startRangeRowRelative_history = rowChangeHistory_Redo.at(-1)[0][1]
+                                startRangeColRelative_history = 0
+                                endRangeRowRelative_history = rowChangeHistory_Redo.at(-1).at(-1)[1]
+                                endRangeColRelative_history = tableRange.columnCount
+                                rowAddress = rowChangeHistory_Redo.at(-1)[0][2]
+
+                                rowInsertedHandler(startRangeRowRelative_history, endRangeRowRelative_history, startRangeColRelative_history, endRangeColRelative_history, table.name, tableRange.values)
+                                rowChangeHistory_Undo.push(rowChangeHistory_Redo.pop()) // add this rowAdded history // delete previous rowDeleted history
+                                rowChange = []
+
+                                console.log(`Redo Row Addition: [${rowAddress}] in '${table.name}' table.`)
+                            }
+                        } else if (myTables[table.name].length > tableRange.rowCount) {
+                            Redo_Undo_Event_Done = true
+                            // undo row added
+                            if (previousRowChangeType === "RowInserted") {
+                                startRangeRowRelative_history = rowChangeHistory_Undo.at(-1)[0][1]
+                                endRangeRowRelative_history = rowChangeHistory_Undo.at(-1).at(-1)[1]
+                                rowAddress = rowChangeHistory_Undo.at(-1)[0][2]
+
+                                rowDeletedHandler(startRangeRowRelative_history, endRangeRowRelative_history, table.name)
+                                rowChangeHistory_Redo.push(rowChangeHistory_Undo.pop()) // delete previous rowAdded history // add this rowDeleted history
+                                rowChange = []
+
+                                console.log(`Undo Row Addition: [${rowAddress}] in '${table.name}' table.`)
+                            } else if (nextRowChangeType === "RowDeleted") {
+                                startRangeRowRelative_history = rowChangeHistory_Redo.at(-1).at(-1)[1]
+                                endRangeRowRelative_history = rowChangeHistory_Redo.at(-1)[0][1]
+                                rowAddress = rowChangeHistory_Redo.at(-1)[0][2]
+
+                                rowDeletedHandler(startRangeRowRelative_history, endRangeRowRelative_history, table.name)
+                                rowChangeHistory_Undo.push(rowChangeHistory_Redo.pop()) // delete previous rowAdded history // add this rowDeleted history
+                                rowChange = []
+
+                                console.log(`Redo Row Deletion: [${rowAddress}] in '${table.name}' table.`)
+                            }
+                        }
+                    }
+                })
+            })
+        } catch (error) {
+            errorHandler(error.message)
         }
 
-        Excel.run(function (ctx) {
-            let table = ctx.workbook.tables.getItem(tableID);
-            table.load("name")
-            let tableRange = table.getRange()
-            tableRange.load("rowCount,columnCount, values")
-            let triggerCell = tableRange.getCell(1, 0)
-            triggerCell.load("values")
-
-            return ctx.sync().then( async () => {
-                if (rowChangeHistory.length !== 0 && myTables[table.name].length !== tableRange.rowCount) {
-                    // trigger the undo event
-                    triggerCell.values = triggerCell.values
-                } 
-            })
-        })
 
         console.log(eventArgs.address)
+        document.addEventListener('keypress', function (event) {
+            console.log('Key pressed: ' + event.key);
+            // You can add more logic here to handle the key press
+        });
 
     }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
